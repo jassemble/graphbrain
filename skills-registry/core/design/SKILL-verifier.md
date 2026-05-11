@@ -10,14 +10,19 @@ metadata:
 
 ## Rubric
 
-| Check | Severity |
-|-------|----------|
-| All PRD requirements mapped to design decisions | ERROR |
-| Tradeoffs documented for each architectural choice | WARNING |
-| No premature optimization (performance not spec'd) | WARNING |
-| ADRs created for decisions with >=2 viable options | INFO |
+| Check | Criterion | Severity |
+|-------|-----------|----------|
+| Requirements mapped | All PRD requirements traced to design components | ERROR |
+| ADRs for decisions | ADR created for each decision with >=2 options | ERROR |
+| Tradeoffs documented | Pros/cons listed for each architectural choice | WARNING |
+| No premature optimization | No performance design without performance requirement | WARNING |
+| Prior decisions checked | .ctx/decisions/ reviewed for conflicts | WARNING |
+| API contracts defined | Request/response shapes specified for all endpoints | WARNING |
+| Error strategy documented | Failure propagation and recovery described | WARNING |
+| Component boundaries clear | Module responsibilities don't overlap | INFO |
+| Security considered | Auth, data access, and input validation addressed | INFO |
 
 ## Output Format
 ```
-Summary -> Findings (by severity) -> Score -> Top 3 Recommendations
+Summary → Findings (by severity) → Score → Top 3 Recommendations
 ```

@@ -10,15 +10,19 @@ metadata:
 
 ## Rubric
 
-| Check | Severity |
-|-------|----------|
-| Rollback path exists and is documented | ERROR |
-| Secrets not in config (env vars or secret management) | ERROR |
-| Monitoring covers new feature | WARNING |
-| Pre-deploy checklist completed | WARNING |
-| Runbook has pre-check, deploy, verify, rollback steps | INFO |
+| Check | Criterion | Severity |
+|-------|-----------|----------|
+| Tests pass | All tests pass in CI before deploy | ERROR |
+| Rollback documented | Rollback procedure exists with exact steps | ERROR |
+| No secrets in code | No API keys, passwords, or tokens in source | ERROR |
+| Version bumped | Semver version incremented appropriately | WARNING |
+| CHANGELOG updated | User-facing changes documented | WARNING |
+| Migrations reversible | Database migrations can be rolled back | WARNING |
+| Monitoring configured | Alerts set for error rate and latency | WARNING |
+| Post-deploy verification | Health checks and smoke tests defined | WARNING |
+| Runbook complete | Pre-check, deploy, verify, rollback steps documented | INFO |
 
 ## Output Format
 ```
-Summary -> Findings (by severity) -> Score -> Top 3 Recommendations
+Summary → Findings (by severity) → Score → Top 3 Recommendations
 ```
