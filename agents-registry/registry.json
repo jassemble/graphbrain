@@ -1,0 +1,18 @@
+{
+  "version": "1.0",
+  "agents": {
+    "brain/generator": { "tier": "core", "install": "always" },
+    "brain/verifier": { "tier": "core", "install": "always" },
+    "brain/synthesis": { "tier": "core", "install": "always" },
+    "brain/maintenance": { "tier": "core", "install": "always" },
+    "sdlc/requirements": { "tier": "core", "install": "always" },
+    "sdlc/design": { "tier": "core", "install": "always" },
+    "sdlc/implementation": { "tier": "core", "install": "always" },
+    "sdlc/testing": { "tier": "core", "install": "always" },
+    "sdlc/deployment": { "tier": "core", "install": "always" },
+    "sdlc/maintenance": { "tier": "core", "install": "always" },
+    "community/code-reviewer": { "tier": "community", "install": "manual" },
+    "community/debugger": { "tier": "community", "install": "manual" },
+    "community/refactorer": { "tier": "community", "install": "manual" }
+  }
+}

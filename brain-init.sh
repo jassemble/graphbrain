@@ -39,7 +39,8 @@ mkdir -p \
   "$CTX_DIR/modules" \
   "$CTX_DIR/sources" \
   "$CTX_DIR/decisions" \
-  "$CTX_DIR/archive"
+  "$CTX_DIR/archive" \
+  "$CTX_DIR/agents"
 
 echo ".ctx/ scaffold created."
 
@@ -302,4 +303,12 @@ if [ -f "$INSTALL_SCRIPT" ]; then
   echo ""
   echo "Phase B: Detecting project stack and installing skills..."
   AGENTCTX_PACKAGE_DIR="$SCRIPT_DIR" bash "$INSTALL_SCRIPT" || echo "Skill installation skipped (non-fatal)."
+fi
+
+# Phase C: Install agents
+AGENT_SCRIPT="$SCRIPT_DIR/scripts/install-agents.sh"
+if [ -f "$AGENT_SCRIPT" ]; then
+  echo ""
+  echo "Phase C: Installing agent definitions..."
+  AGENTCTX_PACKAGE_DIR="$SCRIPT_DIR" bash "$AGENT_SCRIPT" || echo "Agent installation skipped (non-fatal)."
 fi

@@ -10,6 +10,7 @@ trap 'rm -rf "$TEST_DIR"' EXIT
 cp -r "$PACKAGE_DIR/bin" "$TEST_DIR/"
 cp -r "$PACKAGE_DIR/scripts" "$TEST_DIR/"
 cp -r "$PACKAGE_DIR/skills-registry" "$TEST_DIR/"
+cp -r "$PACKAGE_DIR/agents-registry" "$TEST_DIR/"
 cp "$PACKAGE_DIR/brain-init.sh" "$TEST_DIR/"
 mkdir -p "$TEST_DIR/.claude"
 cp "$PACKAGE_DIR/.claude/settings.local.json" "$TEST_DIR/.claude/" 2>/dev/null || true
@@ -178,7 +179,26 @@ for s in kubernetes graphql mobile; do
   check "available/$s has SKILL.md" "$([ -f skills-registry/available/$s/SKILL.md ] && echo 0 || echo 1)"
 done
 
-# --- 16. Uninstall ---
+# --- 16. Agents ---
+echo ""
+echo "Step 16: Agents"
+check "agents/manifest.json exists" "$([ -f .ctx/agents/manifest.json ] && echo 0 || echo 1)"
+check "Core agents installed" "$([ -f .ctx/agents/generator/AGENT.md ] && echo 0 || echo 1)"
+check "SDLC agents installed" "$([ -f .ctx/agents/requirements/AGENT.md ] && echo 0 || echo 1)"
+check "Agent manifest has 10 core agents" "$(python3 -c "
+import json
+with open('.ctx/agents/manifest.json') as f:
+    m = json.load(f)
+print(0 if len(m.get('agents', {})) == 10 else 1)
+" 2>/dev/null || echo 1)"
+check "Community agents listed as available" "$(python3 -c "
+import json
+with open('.ctx/agents/manifest.json') as f:
+    m = json.load(f)
+print(0 if 'code-reviewer' in m.get('available', []) else 1)
+" 2>/dev/null || echo 1)"
+
+# --- 17. Uninstall ---
 echo ""
 echo "Step 16: Uninstall"
 bash bin/graphbrain uninstall > /dev/null 2>&1

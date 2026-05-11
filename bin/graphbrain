@@ -18,6 +18,7 @@ Usage:
   graphbrain lint          Read-only brain verification audit
   graphbrain serve         Start MCP graph query server
   graphbrain add-skill N   Install a skill by name from the registry
+  graphbrain add-agent N   Install an agent by name from the registry
   graphbrain uninstall     Remove .ctx/, hooks, and CLAUDE.md pointer
   graphbrain help          Show this help
 
@@ -80,6 +81,16 @@ case "$CMD" in
       exit 1
     fi
     bash "$PACKAGE_DIR/scripts/install-skills.sh" add-skill "$SKILL"
+    ;;
+  add-agent)
+    check_python
+    AGENT="${1:-}"
+    if [ -z "$AGENT" ]; then
+      echo "Usage: graphbrain add-agent <agent-name>" >&2
+      echo "Available: code-reviewer, debugger, refactorer" >&2
+      exit 1
+    fi
+    bash "$PACKAGE_DIR/scripts/install-agents.sh" add-agent "$AGENT"
     ;;
   uninstall)
     echo "Removing graphbrain from project..."

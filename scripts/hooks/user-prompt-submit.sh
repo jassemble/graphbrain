@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # UserPromptSubmit hook
-# Intent matching against skill trigger phrases + skill re-detection
+# Intent matching against skill + agent trigger phrases, on-demand loading
 # Arg: $1 = user prompt text
 set -euo pipefail
 
@@ -14,38 +14,18 @@ export BRAIN_PROMPT="$PROMPT"
 export BRAIN_CTX="$CTX"
 
 python3 -c "
-import json, os, sys, re
+import json, os, sys, re, glob as g
 
 ctx = os.environ.get('BRAIN_CTX', '.ctx')
 prompt = os.environ.get('BRAIN_PROMPT', '').lower()
-manifest_path = os.path.join(ctx, 'skills', 'manifest.json')
 
-if not os.path.exists(manifest_path):
-    sys.exit(0)
-
-with open(manifest_path) as f:
-    manifest = json.load(f)
-
-# Build trigger phrase index from installed skills
-matches = []
-skills_dir = os.path.join(ctx, 'skills')
-
-for skill_name, info in manifest.get('skills', {}).items():
-    skill_dir = os.path.join(skills_dir, skill_name.split('/')[-1])
-    skill_md = os.path.join(skill_dir, 'SKILL.md')
-    if not os.path.exists(skill_md):
-        continue
-
-    with open(skill_md) as f:
-        content = f.read()
-
-    # Extract trigger_phrases from frontmatter
+def parse_trigger_phrases(content):
+    \"\"\"Extract trigger_phrases from YAML frontmatter without yaml import.\"\"\"
     if not content.startswith('---'):
-        continue
+        return []
     parts = content.split('---', 2)
     if len(parts) < 3:
-        continue
-
+        return []
     phrases = []
     in_triggers = False
     for line in parts[1].split('\n'):
@@ -59,26 +39,55 @@ for skill_name, info in manifest.get('skills', {}).items():
                 phrases.append(phrase)
             elif stripped and not stripped.startswith('-'):
                 in_triggers = False
+    return phrases
 
-    for phrase in phrases:
-        if phrase in prompt:
-            matches.append({'skill': skill_name, 'phrase': phrase, 'path': skill_dir})
+def load_body(content):
+    \"\"\"Extract body (after frontmatter) from markdown.\"\"\"
+    if content.startswith('---'):
+        return content.split('---', 2)[-1].strip()
+    return content
 
-if matches:
-    # Load matched skills
-    for m in matches:
-        skill_md = os.path.join(m['path'], 'SKILL.md')
-        if os.path.exists(skill_md):
-            print(f'## Activated: {m[\"skill\"]} (matched: \"{m[\"phrase\"]}\")')
-            with open(skill_md) as f:
-                # Print just the body, not frontmatter
-                content = f.read()
-                if content.startswith('---'):
-                    body = content.split('---', 2)[-1].strip()
-                else:
-                    body = content
-                print(body[:2000])  # Cap output
-            print()
+# --- Match skills ---
+skills_manifest = os.path.join(ctx, 'skills', 'manifest.json')
+if os.path.exists(skills_manifest):
+    with open(skills_manifest) as f:
+        manifest = json.load(f)
+    skills_dir = os.path.join(ctx, 'skills')
+    for skill_name, info in manifest.get('skills', {}).items():
+        skill_dir = os.path.join(skills_dir, skill_name.split('/')[-1])
+        skill_md = os.path.join(skill_dir, 'SKILL.md')
+        if not os.path.exists(skill_md):
+            continue
+        with open(skill_md) as f:
+            content = f.read()
+        phrases = parse_trigger_phrases(content)
+        for phrase in phrases:
+            if phrase in prompt:
+                print(f'## Skill Activated: {skill_name} (matched: \"{phrase}\")')
+                print(load_body(content)[:2000])
+                print()
+                break
+
+# --- Match agents ---
+agents_manifest = os.path.join(ctx, 'agents', 'manifest.json')
+if os.path.exists(agents_manifest):
+    with open(agents_manifest) as f:
+        manifest = json.load(f)
+    agents_dir = os.path.join(ctx, 'agents')
+    for agent_name, info in manifest.get('agents', {}).items():
+        agent_short = agent_name.split('/')[-1]
+        agent_md = os.path.join(agents_dir, agent_short, 'AGENT.md')
+        if not os.path.exists(agent_md):
+            continue
+        with open(agent_md) as f:
+            content = f.read()
+        phrases = parse_trigger_phrases(content)
+        for phrase in phrases:
+            if phrase in prompt:
+                print(f'## Agent Activated: {agent_short} (matched: \"{phrase}\")')
+                print(load_body(content)[:3000])
+                print()
+                break
 " 2>/dev/null || true
 
 # --- Skill re-detection (~5ms filesystem check) ---
