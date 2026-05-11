@@ -42,7 +42,7 @@ Claude Code passes the following variables to hooks:
 - `$TOOL_INPUT` — JSON string with tool name and arguments (PreToolUse only)
 - `$FILE` — The file path that was read or edited (PostToolUse only)
 
-These are passed as command-line arguments, not environment variables.
+These are passed as command-line arguments (`$1` in the script). The scripts internally export them as environment variables (`BRAIN_PROMPT`, `BRAIN_CTX`, etc.) for use in embedded Python blocks.
 
 ## Exit Codes
 

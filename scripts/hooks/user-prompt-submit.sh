@@ -47,6 +47,12 @@ def load_body(content):
         return content.split('---', 2)[-1].strip()
     return content
 
+def phrase_matches(phrase, prompt):
+    \"\"\"Word-boundary aware phrase matching to avoid false positives.\"\"\"
+    import re
+    pattern = r'(?:^|[\s,;:!?.])' + re.escape(phrase) + r'(?:[\s,;:!?.]|$)'
+    return bool(re.search(pattern, prompt))
+
 # --- Match skills ---
 skills_manifest = os.path.join(ctx, 'skills', 'manifest.json')
 if os.path.exists(skills_manifest):
@@ -62,7 +68,7 @@ if os.path.exists(skills_manifest):
             content = f.read()
         phrases = parse_trigger_phrases(content)
         for phrase in phrases:
-            if phrase in prompt:
+            if phrase_matches(phrase, prompt):
                 print(f'## Skill Activated: {skill_name} (matched: \"{phrase}\")')
                 print(load_body(content)[:2000])
                 print()
@@ -83,7 +89,7 @@ if os.path.exists(agents_manifest):
             content = f.read()
         phrases = parse_trigger_phrases(content)
         for phrase in phrases:
-            if phrase in prompt:
+            if phrase_matches(phrase, prompt):
                 print(f'## Agent Activated: {agent_short} (matched: \"{phrase}\")')
                 print(load_body(content)[:3000])
                 print()

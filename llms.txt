@@ -4,7 +4,7 @@
 
 ## Capabilities
 
-- Knowledge graph extraction from codebases (25+ languages via AST + regex)
+- Knowledge graph extraction from codebases (15+ languages via AST + regex)
 - Governed wiki pages: modules, entities, concepts, decisions
 - Lifecycle hooks: SessionStart, PostToolUse, UserPromptSubmit, Stop, SessionEnd
 - Skill routing: implicit activation via file context, intent match, stack detection

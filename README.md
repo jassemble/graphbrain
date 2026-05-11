@@ -4,7 +4,7 @@ A project-level knowledge brain that gives AI agents persistent, structured cont
 
 ## What It Does
 
-- Extracts a knowledge graph from your codebase (AST + semantic analysis, 25+ languages)
+- Extracts a knowledge graph from your codebase (AST + semantic analysis, 15+ languages)
 - Generates governed wiki pages (modules, entities, concepts, decisions)
 - Routes agents to relevant context automatically via lifecycle hooks
 - Tracks decisions, patterns, and project evolution over time
