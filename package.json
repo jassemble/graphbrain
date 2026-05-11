@@ -15,7 +15,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/anthropics/graphbrain"
+    "url": "https://github.com/jassemble/graphbrain"
   },
   "bin": {
     "graphbrain": "./bin/graphbrain"

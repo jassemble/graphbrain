@@ -24,7 +24,7 @@ That's it. Your `.ctx/` brain is ready.
 ### Manual Setup (no npm)
 
 ```bash
-git clone https://github.com/anthropics/graphbrain .graphbrain-setup
+git clone https://github.com/jassemble/graphbrain .graphbrain-setup
 cp -r .graphbrain-setup/{bin,scripts,skills-registry,brain-init.sh} .
 bash brain-init.sh
 ./bin/brain .
