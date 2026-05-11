@@ -1,0 +1,133 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Resolve the package root (works whether installed globally or locally)
+PACKAGE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+export AGENTCTX_PACKAGE_DIR="$PACKAGE_DIR"
+export PATH="$PACKAGE_DIR/bin:$PATH"
+
+usage() {
+  cat <<EOF
+codebrain — Code Brain for AI Agents
+
+Usage:
+  codebrain init          Initialize .ctx/ scaffold + detect skills
+  codebrain extract       Extract knowledge graph from codebase
+  codebrain extract -u    Incremental extraction (changed files only)
+  codebrain sync          Full sync pipeline (extract -> update -> verify -> commit)
+  codebrain lint          Read-only brain verification audit
+  codebrain serve         Start MCP graph query server
+  codebrain add-skill N   Install a skill by name from the registry
+  codebrain uninstall     Remove .ctx/, hooks, and CLAUDE.md pointer
+  codebrain help          Show this help
+
+Requirements: Python 3.8+ (stdlib only, no pip install needed)
+EOF
+}
+
+# Verify Python 3.8+
+check_python() {
+  if ! command -v python3 &>/dev/null; then
+    echo "ERROR: Python 3 is required but not found." >&2
+    echo "Install Python 3.8+ from https://python.org" >&2
+    exit 1
+  fi
+  local ver
+  ver=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+  local major minor
+  major=$(echo "$ver" | cut -d. -f1)
+  minor=$(echo "$ver" | cut -d. -f2)
+  if [ "$major" -lt 3 ] || { [ "$major" -eq 3 ] && [ "$minor" -lt 8 ]; }; then
+    echo "ERROR: Python 3.8+ required, found $ver" >&2
+    exit 1
+  fi
+}
+
+CMD="${1:-help}"
+shift || true
+
+case "$CMD" in
+  init)
+    check_python
+    bash "$PACKAGE_DIR/brain-init.sh"
+    ;;
+  extract)
+    check_python
+    if [ "${1:-}" = "-u" ] || [ "${1:-}" = "--update" ]; then
+      "$PACKAGE_DIR/bin/brain" . --update
+    else
+      "$PACKAGE_DIR/bin/brain" .
+    fi
+    ;;
+  sync)
+    check_python
+    bash "$PACKAGE_DIR/scripts/sync/run-sync.sh"
+    ;;
+  lint)
+    check_python
+    bash "$PACKAGE_DIR/scripts/sync/phase3-verify.sh" --read-only
+    ;;
+  serve)
+    check_python
+    GRAPH="${1:-.ctx/graph/graph.json}"
+    "$PACKAGE_DIR/bin/brain" serve "$GRAPH"
+    ;;
+  add-skill)
+    check_python
+    SKILL="${1:-}"
+    if [ -z "$SKILL" ]; then
+      echo "Usage: codebrain add-skill <skill-name>" >&2
+      exit 1
+    fi
+    bash "$PACKAGE_DIR/scripts/install-skills.sh" add-skill "$SKILL"
+    ;;
+  uninstall)
+    echo "Removing codebrain from project..."
+    # Remove .ctx/
+    if [ -d ".ctx" ]; then
+      rm -rf .ctx
+      echo "  Removed .ctx/"
+    fi
+    # Remove hooks from settings.local.json
+    if [ -f ".claude/settings.local.json" ]; then
+      python3 -c "
+import json, sys
+with open('.claude/settings.local.json') as f:
+    s = json.load(f)
+if 'hooks' in s:
+    del s['hooks']
+if s:
+    with open('.claude/settings.local.json', 'w') as f:
+        json.dump(s, f, indent=2)
+    print('  Removed hooks from .claude/settings.local.json')
+else:
+    import os
+    os.remove('.claude/settings.local.json')
+    print('  Removed .claude/settings.local.json')
+" 2>/dev/null || true
+    fi
+    # Remove CLAUDE.md pointer
+    if [ -f "CLAUDE.md" ]; then
+      POINTER="# Read .ctx/protocol.md for project brain context"
+      if grep -qF "$POINTER" CLAUDE.md; then
+        grep -vF "$POINTER" CLAUDE.md > CLAUDE.md.tmp && mv CLAUDE.md.tmp CLAUDE.md
+        # Remove file if empty
+        if [ ! -s "CLAUDE.md" ]; then
+          rm -f CLAUDE.md
+          echo "  Removed CLAUDE.md (was empty)"
+        else
+          echo "  Removed brain pointer from CLAUDE.md"
+        fi
+      fi
+    fi
+    echo "Done. Run 'npm uninstall codebrain' to remove the package."
+    ;;
+  help|--help|-h)
+    usage
+    ;;
+  *)
+    echo "Unknown command: $CMD" >&2
+    usage
+    exit 1
+    ;;
+esac

@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# Task 6.3 — Brain MCP server launcher
+# Brain MCP server launcher
 # Starts brain's MCP server for graph queries
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+export PATH="$SCRIPT_DIR/bin:$PATH"
 GRAPH="${1:-.ctx/graph/graph.json}"
 
 if [ ! -f "$GRAPH" ]; then
@@ -12,7 +14,7 @@ if [ ! -f "$GRAPH" ]; then
 fi
 
 if ! command -v brain &>/dev/null; then
-  echo "ERROR: brain CLI not found." >&2
+  echo "ERROR: brain CLI not found at $SCRIPT_DIR/bin/brain" >&2
   exit 1
 fi
 

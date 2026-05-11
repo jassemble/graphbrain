@@ -1,0 +1,11 @@
+# Brain context (generated per-project)
+.ctx/
+
+# Archive (internal planning docs)
+_archive/
+
+# OS
+.DS_Store
+
+# Node
+node_modules/

@@ -3,7 +3,7 @@ name: security
 description: Security review patterns and environment variable management.
 license: MIT
 metadata:
-  author: agentctx
+  author: codebrain
   version: "1.0"
   phase: implementation
   pattern: Reviewer

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Task 2.6 — SessionEnd hook
+# SessionEnd hook
 # Persists observations, updates status, triggers lightweight sync
 set -euo pipefail
 
@@ -39,7 +39,7 @@ if [ -f "$CTX/log.md" ]; then
   # Skill routing activations (count from session log)
   activations=0
   corrections=0
-  if [ -f "$CTX/log.md" ]; then
+  if [ -f "$CTX/log.md" ] && [ -s "$CTX/log.md" ]; then
     activations=$(grep -c "skill activated:" "$CTX/log.md" 2>/dev/null || echo 0)
     corrections=$(grep -c "skill corrected:" "$CTX/log.md" 2>/dev/null || echo 0)
   fi
@@ -130,6 +130,8 @@ for adr_path in new_adrs:
 fi
 
 # --- Trigger lightweight sync if source files changed ---
+PACKAGE_DIR="${AGENTCTX_PACKAGE_DIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
+export PATH="$PACKAGE_DIR/bin:$PATH"
 if command -v brain &>/dev/null; then
   src_changed=$(find . -name "*.ts" -o -name "*.js" -o -name "*.py" -o -name "*.go" -o -name "*.rs" 2>/dev/null | head -1)
   if [ -n "$src_changed" ]; then
@@ -138,6 +140,6 @@ if command -v brain &>/dev/null; then
 fi
 
 # --- Run log consolidation if enough entries ---
-if [ -f "scripts/consolidate-log.sh" ]; then
-  bash scripts/consolidate-log.sh 2>/dev/null || true
+if [ -f "$PACKAGE_DIR/scripts/consolidate-log.sh" ]; then
+  bash "$PACKAGE_DIR/scripts/consolidate-log.sh" 2>/dev/null || true
 fi

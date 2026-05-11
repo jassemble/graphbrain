@@ -1,7 +1,26 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Resolve package directory (supports npm install, direct clone, or env override)
+SCRIPT_DIR="${AGENTCTX_PACKAGE_DIR:-$(cd "$(dirname "$0")" && pwd)}"
 CTX_DIR=".ctx"
+
+# Verify Python 3.8+
+if ! command -v python3 &>/dev/null; then
+  echo "ERROR: Python 3 is required but not found." >&2
+  echo "Install Python 3.8+ from https://python.org" >&2
+  exit 1
+fi
+py_ver=$(python3 -c "import sys; v=sys.version_info; print(f'{v.major}.{v.minor}')")
+py_major=$(echo "$py_ver" | cut -d. -f1)
+py_minor=$(echo "$py_ver" | cut -d. -f2)
+if [ "$py_major" -lt 3 ] || { [ "$py_major" -eq 3 ] && [ "$py_minor" -lt 8 ]; }; then
+  echo "ERROR: Python 3.8+ required, found $py_ver" >&2
+  exit 1
+fi
+
+# Make bundled brain CLI available
+export PATH="$SCRIPT_DIR/bin:$PATH"
 
 if [ -d "$CTX_DIR" ]; then
   echo ".ctx/ already initialized — skipping scaffold."
@@ -25,7 +44,6 @@ mkdir -p \
 echo ".ctx/ scaffold created."
 
 # --- Place content files ---
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 python3 << PYEOF
 import os
 ctx = "$CTX_DIR"
@@ -244,14 +262,44 @@ else
   echo "Created CLAUDE.md with brain pointer."
 fi
 
+# --- Install Claude Code hooks ---
+mkdir -p .claude
+if [ ! -f ".claude/settings.local.json" ]; then
+  python3 -c "
+import json, os
+
+script_dir = '$SCRIPT_DIR'
+hooks_dir = os.path.join(script_dir, 'scripts', 'hooks')
+
+settings = {
+    'hooks': {
+        'SessionStart': [{'hooks': [{'type': 'command', 'command': f'bash {hooks_dir}/session-start.sh'}]}],
+        'UserPromptSubmit': [{'hooks': [{'type': 'command', 'command': f'bash {hooks_dir}/user-prompt-submit.sh \"\$PROMPT\"'}]}],
+        'PreToolUse': [{'hooks': [{'type': 'command', 'command': f'bash {hooks_dir}/guardrails.sh \"\$TOOL_INPUT\"'}]}],
+        'PostToolUse': [{'hooks': [{'type': 'command', 'command': f'bash {hooks_dir}/post-tool-use.sh \"\$FILE\"'}]}],
+        'Stop': [{'hooks': [{'type': 'command', 'command': f'bash {hooks_dir}/stop.sh'}]}],
+        'SessionEnd': [{'hooks': [{'type': 'command', 'command': f'bash {hooks_dir}/session-end.sh'}]}],
+    }
+}
+
+with open('.claude/settings.local.json', 'w') as f:
+    json.dump(settings, f, indent=2)
+print('Installed Claude Code hooks to .claude/settings.local.json')
+"
+else
+  echo ".claude/settings.local.json already exists — skipping hook install."
+  echo "See .claude/HOOKS.md for manual hook configuration."
+fi
+
 # Coexistence check
 if [ -d ".agentctx" ]; then
   echo "Existing .agentctx/ detected — .ctx/ will coexist alongside it."
 fi
 
 # Phase B: Detect and install skills
-if [ -f "scripts/install-skills.sh" ]; then
+INSTALL_SCRIPT="$SCRIPT_DIR/scripts/install-skills.sh"
+if [ -f "$INSTALL_SCRIPT" ]; then
   echo ""
   echo "Phase B: Detecting project stack and installing skills..."
-  bash scripts/install-skills.sh || echo "Skill installation skipped (non-fatal)."
+  AGENTCTX_PACKAGE_DIR="$SCRIPT_DIR" bash "$INSTALL_SCRIPT" || echo "Skill installation skipped (non-fatal)."
 fi

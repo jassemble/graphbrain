@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Task 6.5 — Generate tool-specific config files (additive only)
+# Generate tool-specific config files (additive only)
 set -euo pipefail
 
 # --- .cursorrules ---

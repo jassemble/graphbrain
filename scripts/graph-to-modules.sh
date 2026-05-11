@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Task 1.1 — Generate .ctx/modules/ pages from graph.json
+# Generate .ctx/modules/ pages from graph.json
 # Groups code nodes by source directory, creates one module page per directory.
 # Incremental: skips directories whose source-hash matches.
 set -euo pipefail

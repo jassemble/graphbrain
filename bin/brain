@@ -1,0 +1,817 @@
+#!/usr/bin/env python3
+"""
+brain — Code knowledge graph extractor and MCP server.
+Zero external dependencies. Python 3.8+ stdlib only.
+
+Usage:
+  brain <dir>              Extract graph from codebase
+  brain <dir> --update     Incremental extraction (changed files only)
+  brain serve <graph.json> Start MCP server (stdio)
+"""
+
+import ast
+import hashlib
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+from collections import defaultdict
+from pathlib import Path
+
+# ---------------------------------------------------------------------------
+# Config
+# ---------------------------------------------------------------------------
+
+SUPPORTED_EXTENSIONS = {
+    ".py", ".js", ".jsx", ".ts", ".tsx", ".go", ".rs",
+    ".java", ".rb", ".php", ".swift", ".kt", ".scala",
+    ".c", ".cpp", ".h", ".hpp", ".cs",
+}
+
+IGNORE_DIRS = {
+    "node_modules", ".git", ".ctx", "__pycache__", ".venv", "venv",
+    "dist", "build", ".next", ".nuxt", "target", "vendor",
+    ".tox", ".mypy_cache", ".pytest_cache", "coverage",
+    ".idea", ".vscode", ".egg-info",
+}
+
+MAX_FILE_SIZE = 500_000  # 500KB
+
+# ---------------------------------------------------------------------------
+# File discovery
+# ---------------------------------------------------------------------------
+
+def discover_files(root: str) -> list[str]:
+    files = []
+    root = os.path.abspath(root)
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in IGNORE_DIRS and not d.startswith(".")]
+        for f in filenames:
+            ext = os.path.splitext(f)[1]
+            if ext in SUPPORTED_EXTENSIONS:
+                full = os.path.join(dirpath, f)
+                if os.path.getsize(full) <= MAX_FILE_SIZE:
+                    files.append(os.path.relpath(full, root))
+    return sorted(files)
+
+
+def file_hash(root: str, path: str) -> str:
+    full = os.path.join(root, path)
+    h = hashlib.sha256()
+    with open(full, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()[:16]
+
+# ---------------------------------------------------------------------------
+# Language extractors
+# ---------------------------------------------------------------------------
+
+class Node:
+    def __init__(self, id: str, label: str, node_type: str, file: str, line: int = 0):
+        self.id = id
+        self.label = label
+        self.type = node_type
+        self.file = file
+        self.line = line
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.label,
+            "label": self.label,
+            "type": self.type,
+            "file": self.file,
+            "source_file": self.file,
+            "line": self.line,
+        }
+
+
+class Edge:
+    def __init__(self, source: str, target: str, relation: str, confidence: str = "EXTRACTED",
+                 score: float = 1.0, file: str = ""):
+        self.source = source
+        self.target = target
+        self.relation = relation
+        self.confidence = confidence
+        self.score = score
+        self.file = file
+
+    def to_dict(self):
+        return {
+            "source": self.source,
+            "target": self.target,
+            "relation": self.relation,
+            "confidence": self.confidence,
+            "confidence_score": self.score,
+            "type": self.relation,
+            "source_file": self.file,
+        }
+
+
+def make_id(file: str, name: str) -> str:
+    return f"{file}::{name}".lower().replace("/", ".").replace(" ", "-")
+
+
+def extract_python(root: str, filepath: str) -> tuple[list[Node], list[Edge]]:
+    nodes, edges = [], []
+    full = os.path.join(root, filepath)
+    try:
+        with open(full, "r", encoding="utf-8", errors="replace") as f:
+            source = f.read()
+        tree = ast.parse(source, filename=filepath)
+    except (SyntaxError, ValueError):
+        return nodes, edges
+
+    # File node
+    file_id = make_id(filepath, "")
+    nodes.append(Node(file_id, filepath, "file", filepath))
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef):
+            nid = make_id(filepath, node.name)
+            nodes.append(Node(nid, node.name, "class", filepath, node.lineno))
+            edges.append(Edge(file_id, nid, "contains", file=filepath))
+            for base in node.bases:
+                base_name = ast.dump(base) if not isinstance(base, ast.Name) else base.id
+                if isinstance(base, ast.Name):
+                    base_name = base.id
+                elif isinstance(base, ast.Attribute):
+                    base_name = base.attr
+                else:
+                    continue
+                edges.append(Edge(nid, base_name.lower(), "inherits",
+                                  confidence="EXTRACTED", score=1.0, file=filepath))
+
+            for item in node.body:
+                if isinstance(item, ast.FunctionDef):
+                    mid = make_id(filepath, f"{node.name}.{item.name}")
+                    nodes.append(Node(mid, f"{node.name}.{item.name}", "method", filepath, item.lineno))
+                    edges.append(Edge(nid, mid, "contains", file=filepath))
+
+        elif isinstance(node, ast.FunctionDef) and not isinstance(getattr(node, '_parent', None), ast.ClassDef):
+            # Top-level function check: only if direct child of module
+            pass
+
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            if isinstance(node, ast.ImportFrom) and node.module:
+                target = node.module.split(".")[-1].lower()
+                edges.append(Edge(file_id, target, "imports",
+                                  confidence="EXTRACTED", score=1.0, file=filepath))
+            elif isinstance(node, ast.Import):
+                for alias in node.names:
+                    target = alias.name.split(".")[-1].lower()
+                    edges.append(Edge(file_id, target, "imports",
+                                      confidence="EXTRACTED", score=1.0, file=filepath))
+
+    # Top-level functions (direct children of Module)
+    for node in ast.iter_child_nodes(tree):
+        if isinstance(node, ast.FunctionDef):
+            fid = make_id(filepath, node.name)
+            nodes.append(Node(fid, node.name, "function", filepath, node.lineno))
+            edges.append(Edge(file_id, fid, "contains", file=filepath))
+
+    return nodes, edges
+
+
+# Regex patterns for JS/TS/Go/Rust/Java/etc
+REGEX_PATTERNS = {
+    ".js":   {"class": r'class\s+(\w+)', "function": r'(?:function|const|let|var)\s+(\w+)\s*[=(]', "import": r'(?:import|require)\s*\(?[\'"]([^"\']+)'},
+    ".jsx":  {"class": r'class\s+(\w+)', "function": r'(?:function|const|let|var)\s+(\w+)\s*[=(]', "import": r'(?:import|require)\s*\(?[\'"]([^"\']+)'},
+    ".ts":   {"class": r'class\s+(\w+)', "function": r'(?:function|const|let|var)\s+(\w+)\s*[=(:<]', "interface": r'interface\s+(\w+)', "import": r'(?:import|require)\s*\(?[\'"]([^"\']+)'},
+    ".tsx":  {"class": r'class\s+(\w+)', "function": r'(?:function|const|let|var)\s+(\w+)\s*[=(:<]', "interface": r'interface\s+(\w+)', "import": r'(?:import|require)\s*\(?[\'"]([^"\']+)'},
+    ".go":   {"class": r'type\s+(\w+)\s+struct', "function": r'func\s+(?:\([^)]+\)\s+)?(\w+)\s*\(', "interface": r'type\s+(\w+)\s+interface', "import": r'"([^"]+)"'},
+    ".rs":   {"class": r'struct\s+(\w+)', "function": r'fn\s+(\w+)', "interface": r'trait\s+(\w+)', "import": r'use\s+(?:crate::)?(\w+)'},
+    ".java": {"class": r'class\s+(\w+)', "function": r'(?:public|private|protected|static|\s)+[\w<>\[\]]+\s+(\w+)\s*\(', "interface": r'interface\s+(\w+)', "import": r'import\s+[\w.]+\.(\w+)'},
+    ".rb":   {"class": r'class\s+(\w+)', "function": r'def\s+(\w+)', "import": r'require\s+[\'"]([^"\']+)'},
+    ".php":  {"class": r'class\s+(\w+)', "function": r'function\s+(\w+)', "import": r'use\s+([\w\\]+)'},
+    ".swift":{"class": r'class\s+(\w+)', "function": r'func\s+(\w+)', "interface": r'protocol\s+(\w+)', "import": r'import\s+(\w+)'},
+    ".kt":   {"class": r'class\s+(\w+)', "function": r'fun\s+(\w+)', "interface": r'interface\s+(\w+)', "import": r'import\s+[\w.]+\.(\w+)'},
+    ".scala":{"class": r'class\s+(\w+)', "function": r'def\s+(\w+)', "interface": r'trait\s+(\w+)', "import": r'import\s+[\w.]+\.(\w+)'},
+    ".cs":   {"class": r'class\s+(\w+)', "function": r'(?:public|private|protected|static|\s)+[\w<>\[\]]+\s+(\w+)\s*\(', "interface": r'interface\s+(\w+)', "import": r'using\s+([\w.]+)'},
+    ".c":    {"function": r'(?:[\w*]+\s+)+(\w+)\s*\([^)]*\)\s*\{', "import": r'#include\s*[<"]([^">]+)'},
+    ".cpp":  {"class": r'class\s+(\w+)', "function": r'(?:[\w*:]+\s+)+(\w+)\s*\([^)]*\)\s*\{', "import": r'#include\s*[<"]([^">]+)'},
+    ".h":    {"class": r'class\s+(\w+)', "function": r'(?:[\w*]+\s+)+(\w+)\s*\([^)]*\)\s*;', "import": r'#include\s*[<"]([^">]+)'},
+    ".hpp":  {"class": r'class\s+(\w+)', "function": r'(?:[\w*:]+\s+)+(\w+)\s*\([^)]*\)\s*\{', "import": r'#include\s*[<"]([^">]+)'},
+}
+
+
+def extract_regex(root: str, filepath: str) -> tuple[list[Node], list[Edge]]:
+    nodes, edges = [], []
+    ext = os.path.splitext(filepath)[1]
+    patterns = REGEX_PATTERNS.get(ext, {})
+    if not patterns:
+        return nodes, edges
+
+    full = os.path.join(root, filepath)
+    try:
+        with open(full, "r", encoding="utf-8", errors="replace") as f:
+            source = f.read()
+    except OSError:
+        return nodes, edges
+
+    file_id = make_id(filepath, "")
+    nodes.append(Node(file_id, filepath, "file", filepath))
+
+    for node_type, pattern in patterns.items():
+        if node_type == "import":
+            for m in re.finditer(pattern, source):
+                target = m.group(1).split("/")[-1].split(".")[-1].lower()
+                edges.append(Edge(file_id, target, "imports",
+                                  confidence="EXTRACTED", score=1.0, file=filepath))
+            continue
+
+        for m in re.finditer(pattern, source):
+            name = m.group(1)
+            if len(name) <= 1 or name in ("if", "for", "while", "return", "var", "let", "const"):
+                continue
+            nid = make_id(filepath, name)
+            lineno = source[:m.start()].count("\n") + 1
+            actual_type = node_type
+            if node_type == "class" and ext in (".go", ".rs"):
+                actual_type = "class"
+            nodes.append(Node(nid, name, actual_type, filepath, lineno))
+            edges.append(Edge(file_id, nid, "contains", file=filepath))
+
+    return nodes, edges
+
+
+def extract_file(root: str, filepath: str) -> tuple[list[Node], list[Edge]]:
+    ext = os.path.splitext(filepath)[1]
+    if ext == ".py":
+        return extract_python(root, filepath)
+    else:
+        return extract_regex(root, filepath)
+
+# ---------------------------------------------------------------------------
+# Community detection — label propagation (no dependencies)
+# ---------------------------------------------------------------------------
+
+def detect_communities(nodes: list[dict], edges: list[dict], max_iterations: int = 20) -> dict[str, int]:
+    """Simple label propagation community detection."""
+    node_ids = {n["id"] for n in nodes}
+    adj: dict[str, list[str]] = defaultdict(list)
+    for e in edges:
+        s, t = e["source"], e["target"]
+        if s in node_ids and t in node_ids:
+            adj[s].append(t)
+            adj[t].append(s)
+
+    # Initialize: each node is its own community
+    labels: dict[str, int] = {}
+    for i, nid in enumerate(sorted(node_ids)):
+        labels[nid] = i
+
+    for _ in range(max_iterations):
+        changed = False
+        for nid in sorted(node_ids):
+            neighbors = adj.get(nid, [])
+            if not neighbors:
+                continue
+            # Most common label among neighbors
+            counts: dict[int, int] = defaultdict(int)
+            for nb in neighbors:
+                counts[labels[nb]] += 1
+            best = max(counts, key=counts.get)
+            if labels[nid] != best:
+                labels[nid] = best
+                changed = True
+        if not changed:
+            break
+
+    # Renumber communities to 0..N-1
+    unique = sorted(set(labels.values()))
+    remap = {old: new for new, old in enumerate(unique)}
+    return {nid: remap[lbl] for nid, lbl in labels.items()}
+
+# ---------------------------------------------------------------------------
+# Graph report generation
+# ---------------------------------------------------------------------------
+
+def generate_report(nodes: list[dict], edges: list[dict], duration_ms: int) -> str:
+    degree: dict[str, int] = defaultdict(int)
+    for e in edges:
+        degree[e["source"]] += 1
+        degree[e["target"]] += 1
+
+    communities = set()
+    for n in nodes:
+        c = n.get("community", "")
+        if c != "":
+            communities.add(c)
+
+    # God nodes: top 10 by degree
+    sorted_nodes = sorted(nodes, key=lambda n: degree.get(n["id"], 0), reverse=True)
+    god = sorted_nodes[:10]
+
+    # Cross-community edges
+    node_comm = {n["id"]: n.get("community", "") for n in nodes}
+    cross = []
+    for e in edges:
+        sc = node_comm.get(e["source"], "")
+        tc = node_comm.get(e["target"], "")
+        if sc != "" and tc != "" and sc != tc:
+            cross.append(e)
+
+    # File type distribution
+    ext_count: dict[str, int] = defaultdict(int)
+    for n in nodes:
+        if n["type"] == "file":
+            ext = os.path.splitext(n["file"])[1]
+            ext_count[ext] += 1
+
+    lines = [
+        "# Graph Report",
+        "",
+        f"Generated: {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}",
+        f"Duration: {duration_ms}ms",
+        "",
+        "## Summary",
+        "",
+        f"- Nodes: {len(nodes)}",
+        f"- Edges: {len(edges)}",
+        f"- Communities: {len(communities)}",
+        f"- Cross-community edges: {len(cross)}",
+        "",
+        "## File Types",
+        "",
+    ]
+    for ext, count in sorted(ext_count.items(), key=lambda x: -x[1]):
+        lines.append(f"- {ext}: {count} files")
+
+    lines.extend(["", "## God Nodes (highest degree)", ""])
+    for n in god:
+        d = degree.get(n["id"], 0)
+        lines.append(f"- {n['label']} ({n['type']}, degree {d}, community {n.get('community', '?')})")
+
+    if cross:
+        lines.extend(["", "## Surprising Cross-Community Connections", ""])
+        for e in cross[:15]:
+            sc = node_comm.get(e["source"], "?")
+            tc = node_comm.get(e["target"], "?")
+            lines.append(f"- {e['source']} (cluster:{sc}) <-> {e['target']} (cluster:{tc})")
+
+    lines.append("")
+    return "\n".join(lines)
+
+# ---------------------------------------------------------------------------
+# Extract command
+# ---------------------------------------------------------------------------
+
+def cmd_extract(root: str, incremental: bool = False):
+    root = os.path.abspath(root)
+    ctx = os.path.join(root, ".ctx")
+    graph_dir = os.path.join(ctx, "graph")
+    cache_dir = os.path.join(graph_dir, "cache")
+    os.makedirs(cache_dir, exist_ok=True)
+
+    manifest_path = os.path.join(graph_dir, "manifest.json")
+    graph_path = os.path.join(graph_dir, "graph.json")
+    report_path = os.path.join(graph_dir, "GRAPH_REPORT.md")
+
+    start = time.time()
+
+    # Load previous manifest for incremental
+    prev_manifest: dict = {}
+    if incremental and os.path.exists(manifest_path):
+        with open(manifest_path) as f:
+            prev_manifest = json.load(f)
+
+    prev_hashes = prev_manifest.get("file_hashes", {})
+
+    # Discover files
+    files = discover_files(root)
+    print(f"brain: discovered {len(files)} source files", file=sys.stderr)
+
+    # Compute hashes and determine changed files
+    current_hashes: dict[str, str] = {}
+    changed_files: list[str] = []
+    for fp in files:
+        h = file_hash(root, fp)
+        current_hashes[fp] = h
+        if not incremental or prev_hashes.get(fp) != h:
+            changed_files.append(fp)
+
+    # Detect deleted files
+    deleted = set(prev_hashes.keys()) - set(current_hashes.keys())
+
+    if incremental and not changed_files and not deleted:
+        print("brain: no changes detected", file=sys.stderr)
+        # Write manifest with empty changed_files
+        manifest = {
+            "extracted_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "file_hashes": current_hashes,
+            "changed_files": [],
+            "total_files": len(files),
+        }
+        with open(manifest_path, "w") as f:
+            json.dump(manifest, f, indent=2)
+        sys.exit(10)  # Signal: no changes
+
+    # If incremental with changes, we still re-extract everything for consistency
+    # (cached individual files could be used for optimization later)
+    process_files = files if not incremental else files  # full rebuild for now
+
+    all_nodes: list[Node] = []
+    all_edges: list[Edge] = []
+
+    for fp in process_files:
+        nodes, edges = extract_file(root, fp)
+        all_nodes.extend(nodes)
+        all_edges.extend(edges)
+
+    # Deduplicate nodes by id
+    seen_ids: set[str] = set()
+    unique_nodes: list[dict] = []
+    for n in all_nodes:
+        if n.id not in seen_ids:
+            seen_ids.add(n.id)
+            unique_nodes.append(n.to_dict())
+
+    unique_edges: list[dict] = []
+    seen_edges: set[tuple] = set()
+    for e in all_edges:
+        key = (e.source, e.target, e.relation)
+        if key not in seen_edges:
+            seen_edges.add(key)
+            unique_edges.append(e.to_dict())
+
+    # Resolve dangling edge targets to existing node IDs where possible
+    # (import edges often point to short names that match a file node)
+    node_by_short = {}
+    for n in unique_nodes:
+        short = n["label"].lower().replace(" ", "-").split("::")[-1]
+        basename = os.path.splitext(os.path.basename(n.get("file", "")))[0].lower()
+        node_by_short[short] = n["id"]
+        if n["type"] == "file":
+            node_by_short[basename] = n["id"]
+
+    for e in unique_edges:
+        if e["target"] not in seen_ids and e["target"] in node_by_short:
+            e["target"] = node_by_short[e["target"]]
+
+    # Community detection
+    communities = detect_communities(unique_nodes, unique_edges)
+    for n in unique_nodes:
+        n["community"] = communities.get(n["id"], 0)
+        n["cluster"] = n["community"]
+
+    duration_ms = int((time.time() - start) * 1000)
+
+    # Write graph.json
+    graph = {
+        "nodes": unique_nodes,
+        "edges": unique_edges,
+        "metadata": {
+            "extracted_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "total_files": len(files),
+            "total_nodes": len(unique_nodes),
+            "total_edges": len(unique_edges),
+            "duration_ms": duration_ms,
+        }
+    }
+    with open(graph_path, "w") as f:
+        json.dump(graph, f, indent=2)
+
+    # Write manifest
+    manifest = {
+        "extracted_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "file_hashes": current_hashes,
+        "changed_files": changed_files,
+        "deleted_files": list(deleted),
+        "total_files": len(files),
+        "total_nodes": len(unique_nodes),
+        "total_edges": len(unique_edges),
+        "duration_ms": duration_ms,
+    }
+    with open(manifest_path, "w") as f:
+        json.dump(manifest, f, indent=2)
+
+    # Write GRAPH_REPORT.md
+    report = generate_report(unique_nodes, unique_edges, duration_ms)
+    with open(report_path, "w") as f:
+        f.write(report)
+
+    print(f"brain: extracted {len(unique_nodes)} nodes, {len(unique_edges)} edges "
+          f"from {len(files)} files in {duration_ms}ms", file=sys.stderr)
+    print(f"brain: graph written to {graph_path}", file=sys.stderr)
+    print(f"brain: report written to {report_path}", file=sys.stderr)
+
+# ---------------------------------------------------------------------------
+# MCP Server — stdio JSON-RPC
+# ---------------------------------------------------------------------------
+
+class GraphServer:
+    def __init__(self, graph_path: str):
+        with open(graph_path) as f:
+            self.data = json.load(f)
+        self.nodes = {n["id"]: n for n in self.data.get("nodes", [])}
+        self.edges = self.data.get("edges", self.data.get("links", []))
+        self.adj: dict[str, list[dict]] = defaultdict(list)
+        for e in self.edges:
+            self.adj[e["source"]].append(e)
+            self.adj[e["target"]].append(e)
+
+    def query_graph(self, query: str = "", mode: str = "bfs", max_tokens: int = 2000) -> dict:
+        """BFS/DFS traversal from a matching node."""
+        start_node = None
+        q = query.lower()
+        for nid, n in self.nodes.items():
+            if q in n.get("label", "").lower() or q in nid:
+                start_node = nid
+                break
+        if not start_node:
+            return {"error": f"No node matching '{query}'", "nodes": [], "edges": []}
+
+        visited = set()
+        result_nodes = []
+        result_edges = []
+        token_est = 0
+
+        frontier = [start_node]
+        while frontier and token_est < max_tokens:
+            if mode == "dfs":
+                current = frontier.pop()
+            else:
+                current = frontier.pop(0)
+
+            if current in visited:
+                continue
+            visited.add(current)
+
+            if current in self.nodes:
+                result_nodes.append(self.nodes[current])
+                token_est += 50  # estimate per node
+
+            for e in self.adj.get(current, []):
+                result_edges.append(e)
+                token_est += 30
+                neighbor = e["target"] if e["source"] == current else e["source"]
+                if neighbor not in visited:
+                    frontier.append(neighbor)
+
+        return {"nodes": result_nodes, "edges": result_edges, "tokens_est": token_est}
+
+    def get_node(self, node_id: str) -> dict:
+        n = self.nodes.get(node_id)
+        if not n:
+            for nid, nd in self.nodes.items():
+                if node_id.lower() in nd.get("label", "").lower():
+                    return nd
+            return {"error": f"Node '{node_id}' not found"}
+        return n
+
+    def get_neighbors(self, node_id: str) -> dict:
+        resolved = None
+        if node_id in self.nodes:
+            resolved = node_id
+        else:
+            for nid, nd in self.nodes.items():
+                if node_id.lower() in nd.get("label", "").lower():
+                    resolved = nid
+                    break
+        if not resolved:
+            return {"error": f"Node '{node_id}' not found", "neighbors": []}
+
+        neighbors = []
+        for e in self.adj.get(resolved, []):
+            other = e["target"] if e["source"] == resolved else e["source"]
+            if other in self.nodes:
+                neighbors.append({**self.nodes[other], "edge": e})
+        return {"node": resolved, "neighbors": neighbors}
+
+    def get_community(self, community_id) -> dict:
+        members = [n for n in self.data.get("nodes", [])
+                    if str(n.get("community", n.get("cluster", ""))) == str(community_id)]
+        return {"community": community_id, "members": members, "count": len(members)}
+
+    def god_nodes(self, limit: int = 10) -> list[dict]:
+        degree: dict[str, int] = defaultdict(int)
+        for e in self.edges:
+            degree[e["source"]] += 1
+            degree[e["target"]] += 1
+        sorted_nodes = sorted(self.data.get("nodes", []),
+                              key=lambda n: degree.get(n["id"], 0), reverse=True)
+        result = []
+        for n in sorted_nodes[:limit]:
+            result.append({**n, "degree": degree.get(n["id"], 0)})
+        return result
+
+    def graph_stats(self) -> dict:
+        communities = set()
+        for n in self.data.get("nodes", []):
+            c = n.get("community", n.get("cluster", ""))
+            if c != "":
+                communities.add(c)
+        return {
+            "nodes": len(self.nodes),
+            "edges": len(self.edges),
+            "communities": len(communities),
+            "metadata": self.data.get("metadata", {}),
+        }
+
+    def shortest_path(self, from_node: str, to_node: str) -> dict:
+        # Resolve names
+        start = end = None
+        for nid, n in self.nodes.items():
+            if from_node.lower() in n.get("label", "").lower() or from_node == nid:
+                start = nid
+            if to_node.lower() in n.get("label", "").lower() or to_node == nid:
+                end = nid
+        if not start or not end:
+            return {"error": "Could not resolve node names", "path": []}
+
+        # BFS shortest path
+        from collections import deque
+        queue = deque([(start, [start])])
+        visited = {start}
+        while queue:
+            current, path = queue.popleft()
+            if current == end:
+                return {"path": path, "length": len(path) - 1,
+                        "nodes": [self.nodes.get(p, {"id": p}) for p in path]}
+            for e in self.adj.get(current, []):
+                neighbor = e["target"] if e["source"] == current else e["source"]
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    queue.append((neighbor, path + [neighbor]))
+
+        return {"error": "No path found", "path": []}
+
+
+def cmd_serve(graph_path: str):
+    """MCP stdio server using JSON-RPC 2.0."""
+    server = GraphServer(graph_path)
+    print(f"brain: MCP server ready, graph loaded ({len(server.nodes)} nodes)", file=sys.stderr)
+
+    TOOLS = {
+        "query_graph": {
+            "description": "BFS/DFS traversal from a matching node with token budget",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Node name or substring to start from"},
+                    "mode": {"type": "string", "enum": ["bfs", "dfs"], "default": "bfs"},
+                    "max_tokens": {"type": "integer", "default": 2000},
+                },
+                "required": ["query"]
+            }
+        },
+        "get_node": {
+            "description": "Get a single node by ID or name substring",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"node_id": {"type": "string"}},
+                "required": ["node_id"]
+            }
+        },
+        "get_neighbors": {
+            "description": "Get immediate neighbors of a node",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"node_id": {"type": "string"}},
+                "required": ["node_id"]
+            }
+        },
+        "get_community": {
+            "description": "Get all members of a community/cluster",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"community_id": {"type": "string"}},
+                "required": ["community_id"]
+            }
+        },
+        "god_nodes": {
+            "description": "Get highest-degree nodes (hub abstractions)",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"limit": {"type": "integer", "default": 10}},
+            }
+        },
+        "graph_stats": {
+            "description": "Get graph statistics (node count, edge count, communities)",
+            "inputSchema": {"type": "object", "properties": {}}
+        },
+        "shortest_path": {
+            "description": "Find shortest path between two nodes",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "from_node": {"type": "string"},
+                    "to_node": {"type": "string"},
+                },
+                "required": ["from_node", "to_node"]
+            }
+        },
+    }
+
+    def send(msg):
+        out = json.dumps(msg)
+        sys.stdout.write(f"Content-Length: {len(out)}\r\n\r\n{out}")
+        sys.stdout.flush()
+
+    def handle_request(req: dict) -> dict:
+        method = req.get("method", "")
+        id_ = req.get("id")
+        params = req.get("params", {})
+
+        # MCP lifecycle
+        if method == "initialize":
+            return {"jsonrpc": "2.0", "id": id_, "result": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {"tools": {"listChanged": False}},
+                "serverInfo": {"name": "brain", "version": "1.0.0"},
+            }}
+        if method == "notifications/initialized":
+            return None
+        if method == "tools/list":
+            tools_list = []
+            for name, info in TOOLS.items():
+                tools_list.append({"name": name, "description": info["description"], "inputSchema": info["inputSchema"]})
+            return {"jsonrpc": "2.0", "id": id_, "result": {"tools": tools_list}}
+        if method == "tools/call":
+            tool_name = params.get("name", "")
+            args = params.get("arguments", {})
+            handler = getattr(server, tool_name, None)
+            if not handler:
+                return {"jsonrpc": "2.0", "id": id_, "error": {"code": -32601, "message": f"Unknown tool: {tool_name}"}}
+            try:
+                result = handler(**args)
+                return {"jsonrpc": "2.0", "id": id_, "result": {
+                    "content": [{"type": "text", "text": json.dumps(result, indent=2)}]
+                }}
+            except Exception as ex:
+                return {"jsonrpc": "2.0", "id": id_, "result": {
+                    "content": [{"type": "text", "text": f"Error: {ex}"}],
+                    "isError": True,
+                }}
+        if method == "ping":
+            return {"jsonrpc": "2.0", "id": id_, "result": {}}
+
+        return {"jsonrpc": "2.0", "id": id_, "error": {"code": -32601, "message": f"Unknown method: {method}"}}
+
+    # Read stdio MCP messages
+    while True:
+        try:
+            # Read Content-Length header
+            header = ""
+            while True:
+                line = sys.stdin.readline()
+                if not line:
+                    sys.exit(0)
+                line = line.strip()
+                if not line:
+                    break
+                header = line
+
+            length_match = re.search(r"Content-Length:\s*(\d+)", header)
+            if not length_match:
+                continue
+
+            length = int(length_match.group(1))
+            body = sys.stdin.read(length)
+            if not body:
+                sys.exit(0)
+
+            req = json.loads(body)
+            response = handle_request(req)
+            if response:
+                send(response)
+
+        except (json.JSONDecodeError, KeyboardInterrupt):
+            break
+        except Exception as ex:
+            print(f"brain: error: {ex}", file=sys.stderr)
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+def main():
+    if len(sys.argv) < 2:
+        print(__doc__)
+        sys.exit(1)
+
+    if sys.argv[1] == "serve":
+        if len(sys.argv) < 3:
+            print("Usage: brain serve <graph.json>", file=sys.stderr)
+            sys.exit(1)
+        cmd_serve(sys.argv[2])
+
+    elif sys.argv[1] in ("-h", "--help", "help"):
+        print(__doc__)
+
+    else:
+        # brain <dir> [--update]
+        target = sys.argv[1]
+        incremental = "--update" in sys.argv
+        if not os.path.isdir(target):
+            print(f"brain: not a directory: {target}", file=sys.stderr)
+            sys.exit(1)
+        cmd_extract(target, incremental=incremental)
+
+
+if __name__ == "__main__":
+    main()

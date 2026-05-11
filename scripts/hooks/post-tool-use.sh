@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Task 2.3 — PostToolUse hook
+# PostToolUse hook
 # Validates .ctx/ changes, marks modules stale, injects breadcrumbs
 # Arg: $1 = file path that was edited/read
 set -euo pipefail
@@ -11,7 +11,7 @@ CTX=".ctx"
 FILE="$1"
 
 # --- If file is in .ctx/: validate ---
-if [[ "$FILE" == "$CTX/"* ]]; then
+case "$FILE" in "$CTX/"*)
   python3 -c "
 import sys, os
 
@@ -30,7 +30,7 @@ if os.path.exists(f):
         print('WARNING: editing CONFIRMED page — changes will need re-verification')
 " 2>/dev/null
   exit $?
-fi
+  ;; esac
 
 # --- If file is source code: breadcrumbs + stale marking ---
 python3 -c "

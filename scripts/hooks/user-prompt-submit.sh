@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Task 2.4 — UserPromptSubmit hook
+# UserPromptSubmit hook
 # Intent matching against skill trigger phrases + skill re-detection
 # Arg: $1 = user prompt text
 set -euo pipefail
@@ -10,11 +10,14 @@ CTX=".ctx"
 PROMPT="${1:-}"
 [ -z "$PROMPT" ] && exit 0
 
+export BRAIN_PROMPT="$PROMPT"
+export BRAIN_CTX="$CTX"
+
 python3 -c "
 import json, os, sys, re
 
-ctx = '$CTX'
-prompt = '''$PROMPT'''.lower()
+ctx = os.environ.get('BRAIN_CTX', '.ctx')
+prompt = os.environ.get('BRAIN_PROMPT', '').lower()
 manifest_path = os.path.join(ctx, 'skills', 'manifest.json')
 
 if not os.path.exists(manifest_path):
@@ -79,6 +82,7 @@ if matches:
 " 2>/dev/null || true
 
 # --- Skill re-detection (~5ms filesystem check) ---
-if [ -f "scripts/detect-skills.sh" ]; then
-  bash scripts/detect-skills.sh --quiet 2>/dev/null || true
+PACKAGE_DIR="${AGENTCTX_PACKAGE_DIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
+if [ -f "$PACKAGE_DIR/scripts/detect-skills.sh" ]; then
+  AGENTCTX_PACKAGE_DIR="$PACKAGE_DIR" bash "$PACKAGE_DIR/scripts/detect-skills.sh" --quiet 2>/dev/null || true
 fi

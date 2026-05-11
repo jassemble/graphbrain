@@ -3,7 +3,7 @@ name: go
 description: Go conventions, error handling, and project structure.
 license: MIT
 metadata:
-  author: agentctx
+  author: codebrain
   version: "1.0"
   phase: implementation
   pattern: Tool Wrapper

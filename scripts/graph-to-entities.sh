@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Task 1.2 — Generate .ctx/entities/ pages from graph.json
+# Generate .ctx/entities/ pages from graph.json
 # Creates one entity page per class/service/function/model node.
 # Includes confidence-scored edges from graph data.
 set -euo pipefail
@@ -11,9 +11,6 @@ if [ ! -f "$GRAPH" ]; then
   echo "Error: graph.json not found at $GRAPH" >&2
   exit 1
 fi
-
-created=0
-skipped=0
 
 python3 -c "
 import json, os, sys
@@ -39,6 +36,7 @@ for e in edges:
     inbound.setdefault(tgt, []).append({**info, 'name': src})
 
 entity_types = {'class', 'service', 'function', 'model', 'interface', 'component', 'method'}
+created = 0
 
 for n in nodes:
     ntype = n.get('type', n.get('node_type', '')).lower()
@@ -112,12 +110,8 @@ Type: {ntype}
 \"\"\"
     with open(outfile, 'w') as f:
         f.write(content)
-    print(f'CREATE:{slug}', file=sys.stderr)
-" 2>&1 | while read -r line; do
-  case "$line" in
-    SKIP:*) skipped=$((skipped + 1)) ;;
-    CREATE:*) created=$((created + 1)) ;;
-  esac
-done
+    created += 1
 
-echo "graph-to-entities: created=$created skipped=$skipped"
+skipped = len([n for n in nodes if n.get('type', n.get('node_type', '')).lower() in entity_types]) - created
+print(f'graph-to-entities: created={created} skipped={max(0, skipped)}')
+"

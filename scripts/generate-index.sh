@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Task 1.4 — Generate .ctx/index.md catalog with fingerprints from graph.json
+# Generate .ctx/index.md catalog with fingerprints from graph.json
 set -euo pipefail
 
 GRAPH="${1:-.ctx/graph/graph.json}"
 INDEX=".ctx/index.md"
 CTX=".ctx"
+
+export GRAPH_PATH="$GRAPH"
 
 python3 << 'PYEOF'
 import json, os, glob
@@ -77,7 +79,9 @@ for section, entries in sections.items():
 
         cluster = get_cluster(name)
         degree = get_degree(name)
-        parts = [f"[[{section[:-1] if section.endswith('s') else section}:{name}]]", f"{tokens} tokens"]
+        dir_to_type = {"entities": "entity", "concepts": "concept", "modules": "module", "sources": "source", "decisions": "decision"}
+        wtype = dir_to_type.get(section, section)
+        parts = [f"[[{wtype}:{name}]]", f"{tokens} tokens"]
         if summary:
             parts.append(summary)
         if cluster:

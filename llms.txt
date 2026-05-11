@@ -1,10 +1,10 @@
-# agentctx Code Brain
+# codebrain Code Brain
 
 > A project-level knowledge brain for AI coding agents.
 
 ## Capabilities
 
-- Knowledge graph extraction from codebases (25 languages via Tree-sitter)
+- Knowledge graph extraction from codebases (25+ languages via AST + regex)
 - Governed wiki pages: modules, entities, concepts, decisions
 - Lifecycle hooks: SessionStart, PostToolUse, UserPromptSubmit, Stop, SessionEnd
 - Skill routing: implicit activation via file context, intent match, stack detection
@@ -39,10 +39,13 @@
 
 ## Commands
 
-- `bash brain-init.sh` — Initialize .ctx/ scaffold + detect skills
-- `bash scripts/sync/run-sync.sh` — Full sync pipeline
-- `bash scripts/sync/phase3-verify.sh` — Lint audit (read-only)
-- `brain serve .ctx/graph/graph.json` — Start MCP query server
+- `npx codebrain init` — Initialize .ctx/ scaffold + detect skills
+- `npx codebrain extract` — Extract knowledge graph (Python 3.8+, zero deps)
+- `npx codebrain extract -u` — Incremental extraction (changed files only)
+- `npx codebrain sync` — Full sync pipeline
+- `npx codebrain lint` — Read-only lint audit
+- `npx codebrain serve` — Start MCP query server
+- `npx codebrain add-skill <name>` — Install skill from registry
 
 ## Graph Query API (MCP)
 

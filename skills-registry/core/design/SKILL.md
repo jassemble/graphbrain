@@ -3,7 +3,7 @@ name: sdlc-design
 description: Generate architecture docs and ADRs from requirements.
 license: MIT
 metadata:
-  author: agentctx
+  author: codebrain
   version: "1.0"
   phase: design
   pattern: Generator

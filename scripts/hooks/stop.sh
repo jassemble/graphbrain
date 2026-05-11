@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Task 2.5 — Stop hook
+# Stop hook
 # Checkpoints progress to status.md, logs pause to log.md
 set -euo pipefail
 

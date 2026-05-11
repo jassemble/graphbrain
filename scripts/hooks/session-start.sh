@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Task 2.1 + 2.2 — SessionStart hook
+# SessionStart hook
 # Loads minimal context + builds skill routing table
 set -euo pipefail
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Task 5.3 — Log consolidation engine
+# Log consolidation engine
 set -euo pipefail
 
 CTX=".ctx"

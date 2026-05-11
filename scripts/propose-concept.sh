@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Task 5.4 — Concept proposal system
+# Concept proposal system
 # Reads GRAPH_REPORT.md for surprising connections and proposes concept pages
 # Outputs to stdout only — does NOT create files (human must approve)
 set -euo pipefail

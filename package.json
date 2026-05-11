@@ -1,0 +1,44 @@
+{
+  "name": "codebrain",
+  "version": "0.1.0",
+  "description": "A project-level knowledge brain that gives AI agents persistent, structured context about your codebase.",
+  "keywords": [
+    "ai",
+    "agents",
+    "knowledge-graph",
+    "codebase",
+    "context",
+    "claude",
+    "mcp",
+    "developer-tools"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anthropics/codebrain"
+  },
+  "bin": {
+    "codebrain": "./bin/codebrain"
+  },
+  "files": [
+    "bin/",
+    "scripts/",
+    "skills-registry/",
+    "brain-init.sh",
+    "llms.txt",
+    ".claude/HOOKS.md",
+    "CLAUDE.md",
+    "CHANGELOG.md",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=16"
+  },
+  "scripts": {
+    "postinstall": "node bin/postinstall.js",
+    "init": "bash brain-init.sh",
+    "sync": "bash scripts/sync/run-sync.sh",
+    "lint": "bash scripts/sync/phase3-verify.sh --read-only",
+    "test": "bash tests/e2e-test.sh"
+  }
+}

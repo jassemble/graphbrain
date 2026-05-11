@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Task 1.5 — Generate .ctx/community_map.md from graph.json Leiden clusters
+# Generate .ctx/community_map.md from graph.json Leiden clusters
 set -euo pipefail
 
 GRAPH="${1:-.ctx/graph/graph.json}"
@@ -8,6 +8,8 @@ if [ ! -f "$GRAPH" ]; then
   echo "Error: graph.json not found at $GRAPH" >&2
   exit 1
 fi
+
+export GRAPH_PATH="$GRAPH"
 
 python3 << 'PYEOF'
 import json, os

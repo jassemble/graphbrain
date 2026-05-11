@@ -3,7 +3,7 @@ name: sdlc-maintenance
 description: Fix bugs, improve performance, and manage technical debt.
 license: MIT
 metadata:
-  author: agentctx
+  author: codebrain
   version: "1.0"
   phase: maintenance
   pattern: Generator

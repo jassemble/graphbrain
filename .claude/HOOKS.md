@@ -25,11 +25,26 @@ Keep a backup of the removed entry to re-enable later.
 
 ## Hook Reference
 
-| Hook | Script | Purpose |
-|------|--------|---------|
-| SessionStart | `scripts/hooks/session-start.sh` | Load protocol + decisions + log + skill routing |
-| UserPromptSubmit | `scripts/hooks/user-prompt-submit.sh` | Intent match + skill activation |
-| PreToolUse | `scripts/hooks/guardrails.sh` | Block dangerous operations |
-| PostToolUse | `scripts/hooks/post-tool-use.sh` | Breadcrumbs + stale marking |
-| Stop | `scripts/hooks/stop.sh` | Checkpoint + log pause |
-| SessionEnd | `scripts/hooks/session-end.sh` | Persist + decisions + consolidate |
+| Hook | Script | Input | Purpose |
+|------|--------|-------|---------|
+| SessionStart | `scripts/hooks/session-start.sh` | (none) | Load protocol + decisions + log + skill routing |
+| UserPromptSubmit | `scripts/hooks/user-prompt-submit.sh` | `$PROMPT` — user's prompt text | Intent match + skill activation |
+| PreToolUse | `scripts/hooks/guardrails.sh` | `$TOOL_INPUT` — tool name + args | Block dangerous operations, PII |
+| PostToolUse | `scripts/hooks/post-tool-use.sh` | `$FILE` — file path edited/read | Breadcrumbs + stale marking |
+| Stop | `scripts/hooks/stop.sh` | (none) | Checkpoint + log pause |
+| SessionEnd | `scripts/hooks/session-end.sh` | (none) | Persist + decisions + consolidate |
+
+## Parameters
+
+Claude Code passes the following variables to hooks:
+
+- `$PROMPT` — The user's prompt text (UserPromptSubmit only)
+- `$TOOL_INPUT` — JSON string with tool name and arguments (PreToolUse only)
+- `$FILE` — The file path that was read or edited (PostToolUse only)
+
+These are passed as command-line arguments, not environment variables.
+
+## Exit Codes
+
+- `0` — Pass (with optional stdout message as warning/info)
+- `2` — Block the operation (PreToolUse guardrails only)

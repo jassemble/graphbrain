@@ -3,7 +3,7 @@ name: sdlc-implementation
 description: Implement features using TDD with atomic commits.
 license: MIT
 metadata:
-  author: agentctx
+  author: codebrain
   version: "1.0"
   phase: implementation
   pattern: Generator

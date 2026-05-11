@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Task 5.5 — Contradiction detection
+# Contradiction detection
 # Cross-references AMBIGUOUS edges with claims in .ctx/ pages
 set -euo pipefail
 

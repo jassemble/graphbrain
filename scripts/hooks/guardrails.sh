@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Task 5.6 — Guardrails hook (block + warn)
+# Guardrails hook (block + warn)
 # Exit 2 = BLOCK, Exit 0 with message = WARN, Exit 0 silent = PASS
 # Called as PreToolUse hook with tool info as argument
 set -euo pipefail
@@ -10,11 +10,14 @@ CTX=".ctx"
 # Parse input (tool name + file path from hook context)
 INPUT="${1:-}"
 
+export BRAIN_INPUT="$INPUT"
+export BRAIN_CTX="$CTX"
+
 python3 -c "
 import os, sys, re
 
-ctx = '$CTX'
-input_text = '''$INPUT'''
+ctx = os.environ.get('BRAIN_CTX', '.ctx')
+input_text = os.environ.get('BRAIN_INPUT', '')
 
 # Extract file path from input
 file_match = re.search(r'(/[^\s]+\.md)', input_text)

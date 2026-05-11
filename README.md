@@ -1,10 +1,10 @@
-# agentctx — Code Brain for AI Agents
+# codebrain — Code Brain for AI Agents
 
 A project-level knowledge brain that gives AI agents persistent, structured context about your codebase.
 
 ## What It Does
 
-- Extracts a knowledge graph from your codebase (AST + semantic analysis)
+- Extracts a knowledge graph from your codebase (AST + semantic analysis, 25+ languages)
 - Generates governed wiki pages (modules, entities, concepts, decisions)
 - Routes agents to relevant context automatically via lifecycle hooks
 - Tracks decisions, patterns, and project evolution over time
@@ -12,32 +12,53 @@ A project-level knowledge brain that gives AI agents persistent, structured cont
 ## Quick Start
 
 ```bash
-# 1. Initialize the brain
-bash brain-init.sh
+# Install
+npm install codebrain
 
-# 2. Run extraction (requires brain CLI)
-brain .
-
-# 3. Sync: generate pages from graph
-bash scripts/sync/run-sync.sh
-
-# 4. Verify brain health
-bash scripts/sync/phase3-verify.sh
+# Or one-liner: install + init + extract
+npx codebrain init && npx codebrain extract
 ```
 
-## Slash Commands
+That's it. Your `.ctx/` brain is ready.
+
+### Manual Setup (no npm)
+
+```bash
+git clone https://github.com/anthropics/codebrain .codebrain-setup
+cp -r .codebrain-setup/{bin,scripts,skills-registry,brain-init.sh} .
+bash brain-init.sh
+./bin/brain .
+```
+
+> **Requirements**: Python 3.8+ (stdlib only, no pip install needed)
+
+## CLI
+
+```
+codebrain init          Initialize .ctx/ scaffold + detect skills
+codebrain extract       Extract knowledge graph from codebase
+codebrain extract -u    Incremental extraction (changed files only)
+codebrain sync          Full sync pipeline (extract -> update -> verify -> commit)
+codebrain lint          Read-only brain verification audit
+codebrain serve         Start MCP graph query server
+codebrain add-skill N   Install a skill by name from the registry
+codebrain uninstall     Remove .ctx/, hooks, and CLAUDE.md pointer
+```
+
+## Slash Commands (Claude Code)
 
 - `/brain-sync` — Full sync pipeline (extract, update, verify, commit)
 - `/brain-lint` — Read-only verification audit
+- `/brain-add-skill <name>` — Install a skill from the registry
 
 ## Architecture
 
 ```
-.ctx/                          # The Brain (per-project)
+.ctx/                          # The Brain (per-project, generated)
   protocol.md                  # Entry point (<500 tokens)
   routing.md                   # Keyword -> page (<400 tokens)
   index.md                     # Page catalog with fingerprints
-  graph/                       # brain extraction output
+  graph/                       # Brain extraction output
   concepts/                    # Methodology pages (PROPOSED -> CONFIRMED)
   entities/                    # Code entities with confidence-scored edges
   modules/                     # Directory-level documentation
@@ -45,13 +66,6 @@ bash scripts/sync/phase3-verify.sh
   skills/                      # Auto-detected skill packages
   references/                  # Swappable lint rubrics
 ```
-
-## Progressive Adoption
-
-1. **Start**: `bash brain-init.sh` — scaffold `.ctx/`, zero hooks
-2. **Add hooks**: Enable SessionStart first, then PostToolUse, then UserPromptSubmit
-3. **Enable skills**: Routing engine activates implicitly from hooks
-4. **Full automation**: Enable SessionEnd persistence + `/brain-sync`
 
 ## Skill Detection
 
@@ -68,10 +82,21 @@ On init, the brain detects your project stack and installs matching skills:
 
 Core SDLC skills (requirements, design, implementation, testing, deployment, maintenance) are always installed.
 
+## Lifecycle Hooks
+
+Hooks are installed progressively. Enable them in `.claude/settings.local.json`:
+
+1. **SessionStart** — Loads brain context (protocol + decisions + log)
+2. **UserPromptSubmit** — Skill routing on every prompt
+3. **PostToolUse** — Breadcrumbs and stale marking after edits
+4. **PreToolUse** — Guardrails (blocks dangerous operations, PII)
+5. **Stop** — Checkpoint on pause
+6. **SessionEnd** — Persist observations and decisions
+
 ## MCP Server
 
 ```bash
-brain serve .ctx/graph/graph.json
+npx codebrain serve .ctx/graph/graph.json
 ```
 
 Exposes: `query_graph`, `get_node`, `get_neighbors`, `get_community`, `god_nodes`, `graph_stats`, `shortest_path`. Token budget: < 2000 tokens per query.
@@ -82,3 +107,7 @@ Exposes: `query_graph`, `get_node`, `get_neighbors`, `get_community`, `god_nodes
 - Existing `CLAUDE.md` gets a single pointer line appended
 - Existing `.cursorrules` are never modified
 - `.ctx/` can be added to `.gitignore` during evaluation
+
+## License
+
+MIT

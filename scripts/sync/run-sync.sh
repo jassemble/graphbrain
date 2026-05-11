@@ -3,7 +3,8 @@
 set -euo pipefail
 
 CTX=".ctx"
-SYNC_DIR="scripts/sync"
+export AGENTCTX_PACKAGE_DIR="${AGENTCTX_PACKAGE_DIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
+SYNC_DIR="$AGENTCTX_PACKAGE_DIR/scripts/sync"
 MAX_RETRIES=3
 TOTAL_START=$(python3 -c "import time; print(int(time.time()*1000))")
 

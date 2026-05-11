@@ -4,7 +4,8 @@ set -euo pipefail
 
 CTX=".ctx"
 GRAPH="${1:-$CTX/graph/graph.json}"
-SCRIPTS="scripts"
+PACKAGE_DIR="${AGENTCTX_PACKAGE_DIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
+SCRIPTS="$PACKAGE_DIR/scripts"
 START=$(python3 -c "import time; print(int(time.time()*1000))")
 
 echo "Phase 2: UPDATE"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Task 1.6 — Populate .ctx/routing.md with keyword->page mappings from graph.json
+# Populate .ctx/routing.md with keyword->page mappings from graph.json
 # Stays under 400 tokens by keeping only top entries by node degree.
 set -euo pipefail
 
@@ -10,11 +10,14 @@ if [ ! -f "$GRAPH" ]; then
   exit 1
 fi
 
+export GRAPH_PATH="$GRAPH"
+
 python3 << 'PYEOF'
 import json, os
 from collections import defaultdict
 
-with open(".ctx/graph/graph.json") as f:
+graph_path = os.environ.get("GRAPH_PATH", ".ctx/graph/graph.json")
+with open(graph_path) as f:
     data = json.load(f)
 
 nodes = data.get("nodes", [])
@@ -38,11 +41,20 @@ for n in nodes:
     slug = label.lower().replace(" ", "-").replace("/", "-")
 
     if ntype in ("file", "module", "directory"):
-        modules.append((d, slug, label))
-    elif ntype in ("class", "service", "function", "model", "interface", "component"):
+        # Use directory slug for module routing (modules are per-directory)
+        dir_name = os.path.dirname(n.get("file", label)).strip("/") or "root"
+        dir_slug = dir_name.replace("/", "-").lower()
+        modules.append((d, dir_slug, dir_name))
+    elif ntype in ("class", "service", "function", "model", "interface", "component", "method"):
         entities.append((d, slug, label))
-    else:
-        concepts.append((d, slug, label))
+    # Skip other types (methods as standalone, etc.) — they have no pages
+
+# Deduplicate modules (multiple files per directory)
+seen_modules = {}
+for d, slug, label in modules:
+    if slug not in seen_modules or d > seen_modules[slug][0]:
+        seen_modules[slug] = (d, slug, label)
+modules = list(seen_modules.values())
 
 # Sort by degree descending, keep top entries
 modules.sort(reverse=True)

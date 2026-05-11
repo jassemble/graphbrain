@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Task 5.2 — Split oversized page by ## sections into sub-pages
+# Split oversized page by ## sections into sub-pages
 # Usage: bash scripts/split-page.sh .ctx/entities/auth-service.md
 set -euo pipefail
 

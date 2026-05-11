@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Task 4.4 — Skill detection engine
+# Skill detection engine
 # Evaluates registry.json detect rules against project filesystem
 # --quiet: only output if delta found vs existing manifest (~5ms)
 set -euo pipefail
@@ -7,7 +7,8 @@ set -euo pipefail
 QUIET=false
 [ "${1:-}" = "--quiet" ] && QUIET=true
 
-REGISTRY="skills-registry/registry.json"
+PACKAGE_DIR="${AGENTCTX_PACKAGE_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
+REGISTRY="$PACKAGE_DIR/skills-registry/registry.json"
 MANIFEST=".ctx/skills/manifest.json"
 
 if [ ! -f "$REGISTRY" ]; then

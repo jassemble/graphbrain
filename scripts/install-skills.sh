@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Task 4.5 — Skill installer (brain init Phase B)
+# Skill installer (brain init Phase B)
 # Detects project stack, copies matching skill packages into .ctx/skills/
 set -euo pipefail
 
+PACKAGE_DIR="${AGENTCTX_PACKAGE_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 CTX=".ctx"
-REGISTRY_DIR="skills-registry"
+REGISTRY_DIR="$PACKAGE_DIR/skills-registry"
 SKILLS_DIR="$CTX/skills"
 MANIFEST="$SKILLS_DIR/manifest.json"
 
@@ -63,10 +64,15 @@ print(f'Installed {skill_name} from {tier}/ into {dst}/')
 fi
 
 # Run detection
-detection=$(bash scripts/detect-skills.sh 2>&1)
+detection=$(AGENTCTX_PACKAGE_DIR="$PACKAGE_DIR" bash "$PACKAGE_DIR/scripts/detect-skills.sh" 2>&1)
 echo "Detection result:"
 echo "$detection"
 echo ""
+
+# Write detection to temp file to avoid shell injection issues
+DETECT_TMP=$(mktemp)
+echo "$detection" > "$DETECT_TMP"
+trap 'rm -f "$DETECT_TMP"' EXIT
 
 # Install skills
 python3 -c "
@@ -77,7 +83,8 @@ registry_dir = '$REGISTRY_DIR'
 skills_dir = '$SKILLS_DIR'
 manifest_path = '$MANIFEST'
 
-detection = json.loads('''$detection''')
+with open('$DETECT_TMP') as f:
+    detection = json.load(f)
 today = datetime.date.today().isoformat()
 
 manifest = {

@@ -4,7 +4,8 @@
 set -euo pipefail
 
 CTX=".ctx"
-SCRIPTS="scripts"
+PACKAGE_DIR="${AGENTCTX_PACKAGE_DIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
+SCRIPTS="$PACKAGE_DIR/scripts"
 READ_ONLY="${1:-}"
 START=$(python3 -c "import time; print(int(time.time()*1000))")
 
@@ -34,6 +35,7 @@ if [ "$broken" -gt 0 ]; then
 fi
 
 # 2-14: Python-based checks
+export AGENTCTX_SCRIPTS_DIR="$SCRIPTS"
 py_findings=$(python3 -c "
 import os, re, datetime, json, subprocess, hashlib
 
@@ -152,7 +154,8 @@ if os.path.exists(routing):
 
 # 8. Contradiction check
 try:
-    result = subprocess.run(['bash', 'scripts/detect-contradictions.sh'],
+    scripts_dir = os.environ.get('AGENTCTX_SCRIPTS_DIR', 'scripts')
+    result = subprocess.run(['bash', os.path.join(scripts_dir, 'detect-contradictions.sh')],
                           capture_output=True, text=True, timeout=10)
     output = result.stdout.strip()
     if 'Contradictions Detected' in output:

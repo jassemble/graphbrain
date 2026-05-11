@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Task 1.3 — Find and validate all [[type:name]] wikilinks in .ctx/
+# Find and validate all [[type:name]] wikilinks in .ctx/
 # Exit 0 = all valid, Exit 1 = broken links found
 set -euo pipefail
 
@@ -9,7 +9,17 @@ import re, os, sys
 ctx = '.ctx'
 broken = []
 total = 0
-pattern = re.compile(r'\[\[([a-z]+):([a-z0-9_-]+)\]\]')
+pattern = re.compile(r'\[\[([a-z]+):([a-z0-9_.-]+)\]\]')
+
+# Map singular wikilink types to directory names (plural)
+type_to_dir = {
+    'entity': 'entities',
+    'concept': 'concepts',
+    'module': 'modules',
+    'source': 'sources',
+    'decision': 'decisions',
+    'entitie': 'entities',  # common typo from index generator
+}
 
 for root, dirs, files in os.walk(ctx):
     for fname in files:
@@ -23,7 +33,8 @@ for root, dirs, files in os.walk(ctx):
                 for m in pattern.finditer(line):
                     total += 1
                     wtype, wname = m.group(1), m.group(2)
-                    target = os.path.join(ctx, wtype, wname + '.md')
+                    dir_name = type_to_dir.get(wtype, wtype + 's')
+                    target = os.path.join(ctx, dir_name, wname + '.md')
                     if not os.path.exists(target):
                         broken.append(f'BROKEN: [[{wtype}:{wname}]] in {fpath}:{i}')
 
