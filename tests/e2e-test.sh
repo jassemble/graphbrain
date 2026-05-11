@@ -153,10 +153,10 @@ check "Session start records timestamp" "$([ -f .ctx/.session_start ] && echo 0 
 # --- 13. CLI entry point ---
 echo ""
 echo "Step 13: CLI"
-check "bin/codebrain exists" "$([ -f bin/codebrain ] && echo 0 || echo 1)"
-check "bin/codebrain is executable" "$([ -x bin/codebrain ] && echo 0 || echo 1)"
-help_out=$(bash bin/codebrain help 2>&1) || true
-check "CLI help works" "$(echo "$help_out" | grep -q 'codebrain' && echo 0 || echo 1)"
+check "bin/graphbrain exists" "$([ -f bin/graphbrain ] && echo 0 || echo 1)"
+check "bin/graphbrain is executable" "$([ -x bin/graphbrain ] && echo 0 || echo 1)"
+help_out=$(bash bin/graphbrain help 2>&1) || true
+check "CLI help works" "$(echo "$help_out" | grep -q 'graphbrain' && echo 0 || echo 1)"
 
 # --- 14. Generated hooks config ---
 echo ""
@@ -181,7 +181,7 @@ done
 # --- 16. Uninstall ---
 echo ""
 echo "Step 16: Uninstall"
-bash bin/codebrain uninstall > /dev/null 2>&1
+bash bin/graphbrain uninstall > /dev/null 2>&1
 check "Uninstall removes .ctx/" "$([ ! -d .ctx ] && echo 0 || echo 1)"
 check "Uninstall removes hooks" "$(python3 -c "
 import json, os

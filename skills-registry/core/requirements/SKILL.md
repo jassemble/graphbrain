@@ -3,7 +3,7 @@ name: sdlc-requirements
 description: Gather requirements and generate PRDs with boolean acceptance criteria.
 license: MIT
 metadata:
-  author: codebrain
+  author: graphbrain
   version: "1.0"
   phase: requirements
   pattern: Generator

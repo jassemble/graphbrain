@@ -3,7 +3,7 @@ name: react
 description: React conventions, hooks rules, component patterns.
 license: MIT
 metadata:
-  author: codebrain
+  author: graphbrain
   version: "1.0"
   phase: implementation
   pattern: Tool Wrapper

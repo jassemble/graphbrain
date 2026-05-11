@@ -3,7 +3,7 @@ name: go
 description: Go conventions, error handling, and project structure.
 license: MIT
 metadata:
-  author: codebrain
+  author: graphbrain
   version: "1.0"
   phase: implementation
   pattern: Tool Wrapper

@@ -8,18 +8,18 @@ export PATH="$PACKAGE_DIR/bin:$PATH"
 
 usage() {
   cat <<EOF
-codebrain — Code Brain for AI Agents
+graphbrain — Code Brain for AI Agents
 
 Usage:
-  codebrain init          Initialize .ctx/ scaffold + detect skills
-  codebrain extract       Extract knowledge graph from codebase
-  codebrain extract -u    Incremental extraction (changed files only)
-  codebrain sync          Full sync pipeline (extract -> update -> verify -> commit)
-  codebrain lint          Read-only brain verification audit
-  codebrain serve         Start MCP graph query server
-  codebrain add-skill N   Install a skill by name from the registry
-  codebrain uninstall     Remove .ctx/, hooks, and CLAUDE.md pointer
-  codebrain help          Show this help
+  graphbrain init          Initialize .ctx/ scaffold + detect skills
+  graphbrain extract       Extract knowledge graph from codebase
+  graphbrain extract -u    Incremental extraction (changed files only)
+  graphbrain sync          Full sync pipeline (extract -> update -> verify -> commit)
+  graphbrain lint          Read-only brain verification audit
+  graphbrain serve         Start MCP graph query server
+  graphbrain add-skill N   Install a skill by name from the registry
+  graphbrain uninstall     Remove .ctx/, hooks, and CLAUDE.md pointer
+  graphbrain help          Show this help
 
 Requirements: Python 3.8+ (stdlib only, no pip install needed)
 EOF
@@ -76,13 +76,13 @@ case "$CMD" in
     check_python
     SKILL="${1:-}"
     if [ -z "$SKILL" ]; then
-      echo "Usage: codebrain add-skill <skill-name>" >&2
+      echo "Usage: graphbrain add-skill <skill-name>" >&2
       exit 1
     fi
     bash "$PACKAGE_DIR/scripts/install-skills.sh" add-skill "$SKILL"
     ;;
   uninstall)
-    echo "Removing codebrain from project..."
+    echo "Removing graphbrain from project..."
     # Remove .ctx/
     if [ -d ".ctx" ]; then
       rm -rf .ctx
@@ -120,7 +120,7 @@ else:
         fi
       fi
     fi
-    echo "Done. Run 'npm uninstall codebrain' to remove the package."
+    echo "Done. Run 'npm uninstall graphbrain' to remove the package."
     ;;
   help|--help|-h)
     usage

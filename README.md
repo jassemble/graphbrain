@@ -1,4 +1,4 @@
-# codebrain — Code Brain for AI Agents
+# graphbrain — Code Brain for AI Agents
 
 A project-level knowledge brain that gives AI agents persistent, structured context about your codebase.
 
@@ -13,10 +13,10 @@ A project-level knowledge brain that gives AI agents persistent, structured cont
 
 ```bash
 # Install
-npm install codebrain
+npm install graphbrain
 
 # Or one-liner: install + init + extract
-npx codebrain init && npx codebrain extract
+npx graphbrain init && npx graphbrain extract
 ```
 
 That's it. Your `.ctx/` brain is ready.
@@ -24,8 +24,8 @@ That's it. Your `.ctx/` brain is ready.
 ### Manual Setup (no npm)
 
 ```bash
-git clone https://github.com/anthropics/codebrain .codebrain-setup
-cp -r .codebrain-setup/{bin,scripts,skills-registry,brain-init.sh} .
+git clone https://github.com/anthropics/graphbrain .graphbrain-setup
+cp -r .graphbrain-setup/{bin,scripts,skills-registry,brain-init.sh} .
 bash brain-init.sh
 ./bin/brain .
 ```
@@ -35,14 +35,14 @@ bash brain-init.sh
 ## CLI
 
 ```
-codebrain init          Initialize .ctx/ scaffold + detect skills
-codebrain extract       Extract knowledge graph from codebase
-codebrain extract -u    Incremental extraction (changed files only)
-codebrain sync          Full sync pipeline (extract -> update -> verify -> commit)
-codebrain lint          Read-only brain verification audit
-codebrain serve         Start MCP graph query server
-codebrain add-skill N   Install a skill by name from the registry
-codebrain uninstall     Remove .ctx/, hooks, and CLAUDE.md pointer
+graphbrain init          Initialize .ctx/ scaffold + detect skills
+graphbrain extract       Extract knowledge graph from codebase
+graphbrain extract -u    Incremental extraction (changed files only)
+graphbrain sync          Full sync pipeline (extract -> update -> verify -> commit)
+graphbrain lint          Read-only brain verification audit
+graphbrain serve         Start MCP graph query server
+graphbrain add-skill N   Install a skill by name from the registry
+graphbrain uninstall     Remove .ctx/, hooks, and CLAUDE.md pointer
 ```
 
 ## Slash Commands (Claude Code)
@@ -96,7 +96,7 @@ Hooks are installed progressively. Enable them in `.claude/settings.local.json`:
 ## MCP Server
 
 ```bash
-npx codebrain serve .ctx/graph/graph.json
+npx graphbrain serve .ctx/graph/graph.json
 ```
 
 Exposes: `query_graph`, `get_node`, `get_neighbors`, `get_community`, `god_nodes`, `graph_stats`, `shortest_path`. Token budget: < 2000 tokens per query.

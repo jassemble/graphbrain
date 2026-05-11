@@ -1,4 +1,4 @@
-# codebrain Code Brain
+# graphbrain Code Brain
 
 > A project-level knowledge brain for AI coding agents.
 
@@ -39,13 +39,13 @@
 
 ## Commands
 
-- `npx codebrain init` — Initialize .ctx/ scaffold + detect skills
-- `npx codebrain extract` — Extract knowledge graph (Python 3.8+, zero deps)
-- `npx codebrain extract -u` — Incremental extraction (changed files only)
-- `npx codebrain sync` — Full sync pipeline
-- `npx codebrain lint` — Read-only lint audit
-- `npx codebrain serve` — Start MCP query server
-- `npx codebrain add-skill <name>` — Install skill from registry
+- `npx graphbrain init` — Initialize .ctx/ scaffold + detect skills
+- `npx graphbrain extract` — Extract knowledge graph (Python 3.8+, zero deps)
+- `npx graphbrain extract -u` — Incremental extraction (changed files only)
+- `npx graphbrain sync` — Full sync pipeline
+- `npx graphbrain lint` — Read-only lint audit
+- `npx graphbrain serve` — Start MCP query server
+- `npx graphbrain add-skill <name>` — Install skill from registry
 
 ## Graph Query API (MCP)
 

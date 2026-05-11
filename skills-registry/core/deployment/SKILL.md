@@ -3,7 +3,7 @@ name: sdlc-deployment
 description: Deploy safely with rollback plans and verification steps.
 license: MIT
 metadata:
-  author: codebrain
+  author: graphbrain
   version: "1.0"
   phase: deployment
   pattern: Pipeline

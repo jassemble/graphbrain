@@ -3,7 +3,7 @@ name: data-modeling
 description: Database schema design and Prisma conventions.
 license: MIT
 metadata:
-  author: codebrain
+  author: graphbrain
   version: "1.0"
   phase: design
   pattern: Tool Wrapper

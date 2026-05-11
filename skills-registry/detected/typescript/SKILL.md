@@ -3,7 +3,7 @@ name: typescript
 description: TypeScript conventions and type safety patterns.
 license: MIT
 metadata:
-  author: codebrain
+  author: graphbrain
   version: "1.0"
   phase: implementation
   pattern: Tool Wrapper

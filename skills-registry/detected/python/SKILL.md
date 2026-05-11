@@ -3,7 +3,7 @@ name: python
 description: Python conventions, typing, and project structure.
 license: MIT
 metadata:
-  author: codebrain
+  author: graphbrain
   version: "1.0"
   phase: implementation
   pattern: Tool Wrapper

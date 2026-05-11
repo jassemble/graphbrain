@@ -3,7 +3,7 @@ name: sdlc-testing
 description: Generate test plans and implement comprehensive test suites.
 license: MIT
 metadata:
-  author: codebrain
+  author: graphbrain
   version: "1.0"
   phase: testing
   pattern: Generator

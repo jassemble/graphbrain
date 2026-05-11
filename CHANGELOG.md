@@ -14,6 +14,6 @@ Initial release.
 - Skill system: 6 core SDLC skills (always installed) + 6 auto-detected stack skills + 3 available
 - Stack detection: React, TypeScript, Python, Go, Prisma, security (.env)
 - MCP server with 7 graph query tools and token budgeting (<2000t per response)
-- CLI: `codebrain init|extract|sync|lint|serve|add-skill|uninstall`
+- CLI: `graphbrain init|extract|sync|lint|serve|add-skill|uninstall`
 - npm package with postinstall auto-init
 - Claude Code slash commands: `/brain-sync`, `/brain-lint`, `/brain-add-skill`
