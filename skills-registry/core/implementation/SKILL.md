@@ -6,7 +6,7 @@ metadata:
   author: graphbrain
   version: "1.0"
   phase: implementation
-  pattern: Generator
+  pattern: Generator + Pipeline (RED-GREEN-REFACTOR)
 paths:
   - "**/*.ts"
   - "**/*.tsx"

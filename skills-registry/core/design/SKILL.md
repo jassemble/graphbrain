@@ -6,7 +6,7 @@ metadata:
   author: graphbrain
   version: "1.0"
   phase: design
-  pattern: Generator
+  pattern: Generator + Pipeline
 paths:
   - "**/*.md"
   - "**/architecture/**"

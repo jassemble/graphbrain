@@ -3,8 +3,8 @@
 # Starts brain's MCP server for graph queries
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-export PATH="$SCRIPT_DIR/bin:$PATH"
+PACKAGE_DIR="${AGENTCTX_PACKAGE_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
+export PATH="$PACKAGE_DIR/bin:$PATH"
 GRAPH="${1:-.ctx/graph/graph.json}"
 
 if [ ! -f "$GRAPH" ]; then

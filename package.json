@@ -26,6 +26,7 @@
     "skills-registry/",
     "agents-registry/",
     "brain-init.sh",
+    "profiles.md",
     "llms.txt",
     ".claude/HOOKS.md",
     "CLAUDE.md",

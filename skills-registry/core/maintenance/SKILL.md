@@ -6,7 +6,7 @@ metadata:
   author: graphbrain
   version: "1.0"
   phase: maintenance
-  pattern: Generator
+  pattern: Generator + Compound Learning
 paths:
   - "**/*"
 trigger_phrases:

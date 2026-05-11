@@ -6,7 +6,7 @@ metadata:
   author: graphbrain
   version: "1.0"
   phase: testing
-  pattern: Generator
+  pattern: Generator + Inversion
 paths:
   - "**/*.test.*"
   - "**/*.spec.*"

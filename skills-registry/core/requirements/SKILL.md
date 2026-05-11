@@ -6,7 +6,7 @@ metadata:
   author: graphbrain
   version: "1.0"
   phase: requirements
-  pattern: Generator
+  pattern: Inversion
 paths:
   - "**/*.md"
 trigger_phrases:
