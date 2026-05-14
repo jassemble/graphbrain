@@ -82,6 +82,10 @@ On init, the brain detects your project stack and installs matching skills:
 
 Core SDLC skills (requirements, design, implementation, testing, deployment, maintenance) are always installed.
 
+### Behavioral Skills
+
+A separate tier of **behavioral skills** loads on every session, not on trigger phrases. They shape *how* the agent decides across all tasks (disposition over procedure). The bundled `karpathy-principles` skill encodes four task-agnostic rules: think before coding, simplicity first, surgical changes, goal-driven execution. Composes with all workflow skills.
+
 ## Lifecycle Hooks
 
 Hooks are installed progressively. Enable them in `.claude/settings.local.json`:

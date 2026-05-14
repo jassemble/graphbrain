@@ -97,6 +97,17 @@ manifest = {
 
 installed = 0
 
+# Install behavioral skills (task-agnostic, loaded every session)
+for skill in detection.get('behavioral', []):
+    src = os.path.join(registry_dir, skill)
+    dst = os.path.join(skills_dir, skill.split('/')[-1])
+    if os.path.isdir(src):
+        if os.path.exists(dst):
+            shutil.rmtree(dst)
+        shutil.copytree(src, dst)
+        manifest['skills'][skill] = {'reason': 'behavioral — always loaded', 'tier': 'behavioral'}
+        installed += 1
+
 # Install core skills
 for skill in detection.get('core', []):
     src = os.path.join(registry_dir, skill)
@@ -105,7 +116,7 @@ for skill in detection.get('core', []):
         if os.path.exists(dst):
             shutil.rmtree(dst)
         shutil.copytree(src, dst)
-        manifest['skills'][skill] = {'reason': 'core — always installed'}
+        manifest['skills'][skill] = {'reason': 'core — always installed', 'tier': 'core'}
         installed += 1
 
 # Install detected skills

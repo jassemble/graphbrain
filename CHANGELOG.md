@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.0 (2026-05-15)
+
+### Features
+- **Behavioral skill tier** — sixth design pattern for task-agnostic disposition rules
+- `behavioral/karpathy-principles` skill bundled by default (4 principles from Andrej Karpathy)
+- SessionStart hook now injects behavioral skill bodies into every session (not trigger-matched)
+- New `behavioral` tier in registry.json alongside core/detected/available
+- Manifest entries include `tier` field for routing
+
+### Pattern
+Behavioral skills differ from the 5 workflow patterns (Tool Wrapper, Generator, Reviewer, Inversion, Pipeline):
+- Task-agnostic scope (apply to every prompt)
+- Disposition over procedure (shape decisions across all tasks)
+- Compose with all 5 workflow patterns
+
 ## 0.2.1 (2026-05-12)
 
 ### Improvements

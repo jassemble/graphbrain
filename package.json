@@ -1,6 +1,6 @@
 {
   "name": "graphbrain",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "A project-level knowledge brain that gives AI agents persistent, structured context about your codebase.",
   "keywords": [
     "ai",

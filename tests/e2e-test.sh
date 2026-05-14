@@ -108,6 +108,16 @@ echo "Step 8: Skill registry"
 check "registry.json exists" "$([ -f skills-registry/registry.json ] && echo 0 || echo 1)"
 check "manifest.json exists" "$([ -f .ctx/skills/manifest.json ] && echo 0 || echo 1)"
 check "Core skills installed" "$([ -d .ctx/skills/requirements ] && echo 0 || echo 1)"
+check "Behavioral skill installed" "$([ -d .ctx/skills/karpathy-principles ] && echo 0 || echo 1)"
+check "Behavioral skill tagged in manifest" "$(python3 -c "
+import json
+with open('.ctx/skills/manifest.json') as f:
+    m = json.load(f)
+behavioral = [k for k, v in m.get('skills', {}).items() if v.get('tier') == 'behavioral']
+print(0 if behavioral else 1)
+" 2>/dev/null || echo 1)"
+SS_OUT=$(bash scripts/hooks/session-start.sh 2>&1)
+check "SessionStart injects behavioral principles" "$(echo "$SS_OUT" | grep -q 'Behavioral Principles' && echo 0 || echo 1)"
 
 # --- 9. Hooks ---
 echo ""

@@ -21,6 +21,9 @@
 
 ## Skills
 
+### Behavioral (always loaded, task-agnostic disposition)
+- `skills/karpathy-principles/SKILL.md` — Think before coding, simplicity first, surgical changes, goal-driven execution
+
 ### Core (always installed)
 - `skills/requirements/SKILL.md` — PRD generation with boolean ACs
 - `skills/design/SKILL.md` — Architecture docs and ADRs

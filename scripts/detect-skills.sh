@@ -27,6 +27,7 @@ with open(registry_path) as f:
     registry = json.load(f)
 
 core = []
+behavioral = []
 detected = []
 available = []
 
@@ -35,7 +36,10 @@ for skill_name, info in registry.get('skills', {}).items():
     detect = info.get('detect', 'manual')
 
     if detect == 'always':
-        core.append(skill_name)
+        if tier == 'behavioral':
+            behavioral.append(skill_name)
+        else:
+            core.append(skill_name)
         continue
 
     if detect == 'manual':
@@ -78,6 +82,7 @@ for skill_name, info in registry.get('skills', {}).items():
 
 result = {
     'core': core,
+    'behavioral': behavioral,
     'detected': detected,
     'available': available
 }

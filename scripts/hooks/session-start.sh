@@ -32,8 +32,37 @@ if [ -f "$CTX/log.md" ]; then
   echo ""
 fi
 
-# --- 2.2: Skill routing table ---
+# --- Behavioral skills (always-on disposition, task-agnostic) ---
 MANIFEST="$CTX/skills/manifest.json"
+if [ -f "$MANIFEST" ]; then
+  python3 -c "
+import json, os
+manifest_path = '$MANIFEST'
+ctx = '$CTX'
+with open(manifest_path) as f:
+    manifest = json.load(f)
+behavioral_skills = [
+    (name, info) for name, info in manifest.get('skills', {}).items()
+    if info.get('tier') == 'behavioral'
+]
+if behavioral_skills:
+    print('### Behavioral Principles (always on)')
+    print()
+    for name, info in behavioral_skills:
+        short = name.split('/')[-1]
+        skill_md = os.path.join(ctx, 'skills', short, 'SKILL.md')
+        if os.path.exists(skill_md):
+            with open(skill_md) as f:
+                content = f.read()
+            if content.startswith('---'):
+                body = content.split('---', 2)[-1].strip()
+            else:
+                body = content
+            print(body)
+            print()
+" 2>/dev/null || true
+fi
+
 if [ -f "$MANIFEST" ]; then
   echo "### Skill Routing Table"
   python3 -c "

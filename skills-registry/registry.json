@@ -1,6 +1,7 @@
 {
   "version": "1.0",
   "skills": {
+    "behavioral/karpathy-principles": { "tier": "behavioral", "detect": "always" },
     "core/requirements": { "tier": "core", "detect": "always" },
     "core/design": { "tier": "core", "detect": "always" },
     "core/implementation": { "tier": "core", "detect": "always" },
