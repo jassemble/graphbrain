@@ -13,6 +13,7 @@
     "sdlc/maintenance": { "tier": "core", "install": "always" },
     "community/code-reviewer": { "tier": "community", "install": "manual" },
     "community/debugger": { "tier": "community", "install": "manual" },
-    "community/refactorer": { "tier": "community", "install": "manual" }
+    "community/refactorer": { "tier": "community", "install": "manual" },
+    "community/goap-planner": { "tier": "community", "install": "manual" }
   }
 }

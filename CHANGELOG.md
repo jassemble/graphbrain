@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.0 (2026-05-15)
+
+### Features (fills remaining gaps from agentctx-idea 2026-05-14 ingest)
+- **GOAP Planner agent** (`community/goap-planner`) — Deterministic symbolic A* planning as alternative to LLM planning
+- **Agent Federation skill** (`available/agent-federation`) — mTLS + ed25519 + 14-type PII redaction for cross-org coordination
+- **Consensus Topologies skill** (`available/consensus-topologies`) — Raft, Byzantine, Gossip, Adaptive patterns for multi-agent swarms
+- **Trust Scoring skill** (`available/trust-scoring`) — Quantitative trust formula with privilege tier gating
+
+### Coverage
+100% of stable concepts from agentctx-idea now implemented or documented.
+
 ## 0.3.0 (2026-05-15)
 
 ### Features

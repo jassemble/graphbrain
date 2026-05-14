@@ -185,9 +185,10 @@ print(0 if len(hooks) == 6 else 1)
 # --- 15. Available skills have content ---
 echo ""
 echo "Step 15: Available skills"
-for s in kubernetes graphql mobile; do
+for s in kubernetes graphql mobile agent-federation consensus-topologies trust-scoring; do
   check "available/$s has SKILL.md" "$([ -f skills-registry/available/$s/SKILL.md ] && echo 0 || echo 1)"
 done
+check "goap-planner agent exists" "$([ -f agents-registry/community/goap-planner/AGENT.md ] && echo 0 || echo 1)"
 
 # --- 16. Agents ---
 echo ""

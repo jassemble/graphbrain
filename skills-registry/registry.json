@@ -49,6 +49,9 @@
     },
     "available/kubernetes": { "tier": "available", "detect": "manual" },
     "available/graphql": { "tier": "available", "detect": "manual" },
-    "available/mobile": { "tier": "available", "detect": "manual" }
+    "available/mobile": { "tier": "available", "detect": "manual" },
+    "available/agent-federation": { "tier": "available", "detect": "manual" },
+    "available/consensus-topologies": { "tier": "available", "detect": "manual" },
+    "available/trust-scoring": { "tier": "available", "detect": "manual" }
   }
 }
